@@ -2,10 +2,13 @@ import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
 
 export const dynamic = "force-dynamic";
 
-const MANXUE_TESTS_URL = "https://manxue.ai/api/v1/tests";
-
 export async function POST(request: Request) {
   try {
+    const testsUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
+    if (!testsUrl?.startsWith("https://")) {
+      return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
+    }
+
     const body = (await request.json()) as Record<string, unknown>;
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
@@ -27,7 +30,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "当前测试不支持这个推理程度" }, { status: 400 });
     }
 
-    const response = await fetch(MANXUE_TESTS_URL, {
+    const response = await fetch(testsUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({

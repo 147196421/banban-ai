@@ -10,16 +10,13 @@ import {
   CircleGauge,
   Clock3,
   Code2,
-  Eye,
   KeyRound,
   LoaderCircle,
-  Menu,
   Network,
   RefreshCw,
   Search,
   ShieldCheck,
   Sparkles,
-  TestTube2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -59,7 +56,6 @@ export function BanbanWorkbench() {
   const [runState, setRunState] = useState<RunState>("idle");
   const [task, setTask] = useState<JsonRecord | null>(null);
   const [runError, setRunError] = useState("");
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const modelIsGpt = /(^|\/)gpt-/i.test(selectedModel.trim());
   const credentialsReady = baseUrl.startsWith("https://") && apiKey.trim().length > 5;
@@ -74,7 +70,7 @@ export function BanbanWorkbench() {
 
     let label = "等待检测";
     let tone = "idle";
-    let summary = "获取模型并发起测试后，这里会显示判定结果。";
+    let summary = "读取模型并开始检测后，这里会显示判定结果。";
 
     if (runState === "submitting") {
       label = "正在启动";
@@ -222,6 +218,11 @@ export function BanbanWorkbench() {
   }
 
   const activeStep = runState === "idle" ? -1 : runState === "submitting" ? 0 : task?.phase === "classifying" ? 2 : runState === "success" ? 3 : 1;
+  const actionHint = !credentialsReady
+    ? "填写 API Key 后即可读取模型"
+    : !modelIsGpt
+      ? "先获取或填写一个 GPT 模型"
+      : "测试通常需要 1–5 分钟";
 
   return (
     <main id="main-content" className="min-h-screen bg-background text-foreground">
@@ -232,54 +233,38 @@ export function BanbanWorkbench() {
             <span className="brand-mark" aria-hidden="true"><span>办</span><span>办</span></span>
             <span>办办<span className="brand-ai">AI</span></span>
           </a>
-          <nav className="desktop-nav" aria-label="主导航">
-            <a className="nav-active" href="#workbench">GPT 检测</a>
-            <a href="#method">判定方式</a>
-            <a href="#reports">检测结果</a>
-          </nav>
-          <div className="header-actions">
-            <span className="system-pill"><span />GPT 专用检测</span>
-            <button className="mobile-menu" type="button" aria-label="打开导航" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((value) => !value)}>
-              <Menu aria-hidden="true" />
-            </button>
-          </div>
+          <span className="header-product">GPT 接口检测</span>
+          <span className="system-status"><i aria-hidden="true" />检测服务正常</span>
         </div>
-        {mobileNavOpen && (
-          <nav className="mobile-nav" aria-label="手机导航">
-            <a href="#workbench">GPT 检测</a><a href="#method">判定方式</a><a href="#reports">检测结果</a>
-          </nav>
-        )}
       </header>
 
-      <section className="intro" id="top">
+      <section className="page-intro" id="top">
         <div>
-          <p className="intro-kicker"><TestTube2 aria-hidden="true" /> GPT 接口能力检测</p>
-          <h1>你的 GPT，<br />到底满不满血。</h1>
+          <h1>测一下这个 GPT 接口</h1>
+          <p>选择接口实际开放的模型，跑一遍固定推理或动画测试。</p>
         </div>
-        <p className="intro-copy">
-          读取接口实际开放的 GPT 模型，用固定推理题和单页动画题检测输出质量。结果只代表本次测试，不用于证明模型身份。
-        </p>
+        <p className="intro-note">结果只代表这一次输出，不用于证明模型身份。</p>
       </section>
 
       <section className="workbench" id="workbench" aria-label="GPT 检测工作台">
         <div className="config-panel">
           <div className="panel-heading">
-            <div><span className="section-index">检测配置</span><h2>发起 GPT 检测</h2></div>
-            <span className="draft-badge">GPT 专用</span>
+            <div><span className="section-kicker">设置</span><h2>检测参数</h2></div>
+            <span className="panel-step">01</span>
           </div>
 
           <Tabs value={benchmark} onValueChange={changeBenchmark}>
             <TabsList className="benchmark-tabs" aria-label="选择检测项目">
-              <TabsTrigger value="reasoning"><Sparkles aria-hidden="true" />糖果推理</TabsTrigger>
-              <TabsTrigger value="frontend"><Code2 aria-hidden="true" />单页动画</TabsTrigger>
+              <TabsTrigger value="reasoning"><Sparkles aria-hidden="true" />逻辑推理</TabsTrigger>
+              <TabsTrigger value="frontend"><Code2 aria-hidden="true" />鹈鹕动画</TabsTrigger>
             </TabsList>
           </Tabs>
 
           <div className="benchmark-note">
-            <span className="note-icon">{benchmark === "reasoning" ? <CircleGauge aria-hidden="true" /> : <Braces aria-hidden="true" />}</span>
+            <span className="note-icon" aria-hidden="true">{benchmark === "reasoning" ? <CircleGauge /> : <Braces />}</span>
             <div>
-              <strong>{benchmark === "reasoning" ? "固定答案逻辑题" : "鹈鹕骑自行车动画题"}</strong>
-              <p>{benchmark === "reasoning" ? "回答中出现独立的 21 即通过，用于检测固定推理题表现。" : "生成单文件 HTML，由办办AI检测引擎判定正常、疑似降智或无法判定。"}</p>
+              <strong>{benchmark === "reasoning" ? "糖果逻辑题" : "鹈鹕骑自行车"}</strong>
+              <p>{benchmark === "reasoning" ? "检查回答是否得到固定结果 21。" : "让模型生成一页动画，并分析作品的完成质量。"}</p>
             </div>
           </div>
 
@@ -293,20 +278,20 @@ export function BanbanWorkbench() {
             </div>
 
             <div className="field field-wide">
-              <div className="label-row"><Label htmlFor="api-key">API Key</Label><span>不写入浏览器缓存</span></div>
+              <div className="label-row"><Label htmlFor="api-key">API Key</Label><span>本次使用，不保存</span></div>
               <div className="field-control">
                 <KeyRound aria-hidden="true" />
-                <Input id="api-key" type="password" autoComplete="off" value={apiKey} onChange={(event) => { setApiKey(event.target.value); resetModels(); }} placeholder="sk-••••••••••••••••" />
+                <Input id="api-key" type="password" autoComplete="off" value={apiKey} onChange={(event) => { setApiKey(event.target.value); resetModels(); }} placeholder="输入你的 API Key" />
               </div>
             </div>
 
             <div className="model-discovery field-wide">
               <Button type="button" variant="outline" className="fetch-models" disabled={!credentialsReady || modelLoading} onClick={fetchModels}>
                 {modelLoading ? <LoaderCircle className="spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
-                {modelLoading ? "正在读取" : models.length ? "重新获取模型" : "一键获取 GPT 模型"}
+                {modelLoading ? "正在读取" : models.length ? "重新读取模型" : "读取可用模型"}
               </Button>
               <button className="manual-link" type="button" onClick={() => { setManualModel((value) => !value); setSelectedModel(""); setModelMessage(""); }}>
-                {manualModel ? "返回模型列表" : "无法读取？手动填写"}
+                {manualModel ? "使用模型列表" : "手动填写模型名"}
               </button>
             </div>
 
@@ -338,36 +323,36 @@ export function BanbanWorkbench() {
 
           <div className="security-note">
             <ShieldCheck aria-hidden="true" />
-            <span>接口地址、模型名和 API Key 仅用于本次检测；办办AI不会保存你的密钥。</span>
+            <span>接口地址、模型名和密钥只用于完成本次检测，办办AI不会保存密钥。</span>
           </div>
 
-          <Button className="start-button" size="lg" disabled={!ready} onClick={startTest}>
-            {["submitting", "polling"].includes(runState) ? "检测进行中" : "开始检测"}
-            {["submitting", "polling"].includes(runState) ? <LoaderCircle className="spin" aria-hidden="true" /> : <ArrowUpRight aria-hidden="true" />}
-          </Button>
+          <div className="start-row">
+            <span id="action-hint">{actionHint}</span>
+            <Button className="start-button" size="lg" disabled={!ready} onClick={startTest} aria-describedby="action-hint">
+              {["submitting", "polling"].includes(runState) ? "正在检测" : "开始检测"}
+              {["submitting", "polling"].includes(runState) ? <LoaderCircle className="spin" aria-hidden="true" /> : <ArrowUpRight aria-hidden="true" />}
+            </Button>
+          </div>
         </div>
 
         <div className={`result-panel result-${result.tone}`} id="reports" aria-live="polite">
           <div className="result-topline">
-            <div><span className="section-index">本次结果</span><h2>{selectedModel || "等待选择模型"}</h2></div>
-            <span className={`status-orb status-${result.tone}`} aria-label={result.label} />
+            <div><span className="section-kicker">结果</span><h2>{selectedModel || "尚未选择模型"}</h2></div>
+            <span className={`result-state result-state-${result.tone}`}><i aria-hidden="true" />{result.label}</span>
           </div>
 
-          <div className="score-dial" aria-label={`检测结果：${result.label}`}>
-            <div className="dial-inner"><strong>{result.label}</strong><span>{benchmark === "reasoning" ? "逻辑题判定" : "作品质量判定"}</span></div>
+          <div className="result-readout" aria-label={`检测结果：${result.label}`}>
+            <span>{benchmark === "reasoning" ? "逻辑题判定" : "作品质量判定"}</span>
+            <strong>{result.label}</strong>
+            <p>{result.tone === "error" && <AlertTriangle aria-hidden="true" />}{result.summary}</p>
           </div>
-
-          <p className="result-summary">
-            {result.tone === "error" && <AlertTriangle aria-hidden="true" />}
-            {result.summary}
-          </p>
 
           {benchmark === "frontend" && runState === "success" && (
             <section className="pelican-preview" aria-label="鹈鹕作品浏览器预览">
               <div className="preview-chrome">
                 <span className="preview-lights" aria-hidden="true"><i /><i /><i /></span>
-                <span className="preview-address">模型生成作品 · 安全沙箱</span>
-                <span className="preview-live">实时预览</span>
+                <span className="preview-address">模型生成作品</span>
+                <span className="preview-live">安全预览</span>
               </div>
               {pelicanHtml ? (
                 <iframe
@@ -388,9 +373,9 @@ export function BanbanWorkbench() {
           )}
 
           <div className="metric-row">
-            <div><Clock3 aria-hidden="true" /><span>响应耗时</span><strong>{result.duration ? `${(result.duration / 1000).toFixed(1)} s` : "—"}</strong></div>
-            <div><Activity aria-hidden="true" /><span>输入 Token</span><strong>{result.inputTokens ? result.inputTokens.toLocaleString() : "—"}</strong></div>
-            <div><Braces aria-hidden="true" /><span>输出 Token</span><strong>{result.outputTokens ? result.outputTokens.toLocaleString() : "—"}</strong></div>
+            <div><span><Clock3 aria-hidden="true" />响应耗时</span><strong>{result.duration ? `${(result.duration / 1000).toFixed(1)} s` : "—"}</strong></div>
+            <div><span><Activity aria-hidden="true" />输入 Token</span><strong>{result.inputTokens ? result.inputTokens.toLocaleString() : "—"}</strong></div>
+            <div><span><Braces aria-hidden="true" />输出 Token</span><strong>{result.outputTokens ? result.outputTokens.toLocaleString() : "—"}</strong></div>
           </div>
 
           <ol className="run-steps">
@@ -400,7 +385,7 @@ export function BanbanWorkbench() {
               return (
                 <li key={step} className={current ? "step-current" : completed ? "step-complete" : ""}>
                   <span>{completed ? <Check aria-hidden="true" /> : current ? <RefreshCw className="spin" aria-hidden="true" /> : index + 1}</span>
-                  <p><strong>{step}</strong><small>{completed ? "已完成" : current ? "正在处理" : "等待运行"}</small></p>
+                  <p><strong>{step}</strong><small>{completed ? "完成" : current ? "进行中" : "等待"}</small></p>
                 </li>
               );
             })}
@@ -408,15 +393,18 @@ export function BanbanWorkbench() {
         </div>
       </section>
 
-      <section className="foundation-grid" id="method" aria-label="检测判定方式">
-        <article><Eye aria-hidden="true" /><div><h3>只测试 GPT</h3><p>自动读取接口模型，并过滤非 GPT 与音频、图像等非文本模型。</p></div></article>
-        <article><CircleGauge aria-hidden="true" /><div><h3>固定题目判定</h3><p>糖果题检查正确结果；动画题由办办AI检测引擎分析完成质量。</p></div></article>
-        <article><ShieldCheck aria-hidden="true" /><div><h3>结果不等于验真</h3><p>测试反映本次接口输出水平，不能证明中转服务实际使用的模型身份。</p></div></article>
+      <section className="method-notes" id="method" aria-label="检测判定方式">
+        <h2>这份结果怎么看</h2>
+        <div className="method-list">
+          <article><span>01</span><div><h3>只显示 GPT</h3><p>模型列表会过滤音频、图像和其他非 GPT 模型。</p></div></article>
+          <article><span>02</span><div><h3>题目保持固定</h3><p>同一测试使用同一判定标准，方便比较不同接口。</p></div></article>
+          <article><span>03</span><div><h3>结果不是验真</h3><p>它反映本次输出表现，不能证明接口背后的真实模型身份。</p></div></article>
+        </div>
       </section>
 
       <footer>
         <a className="brand footer-brand" href="#top"><span>办办</span><span className="brand-ai">AI</span></a>
-        <p>GPT 接口能力检测</p><p>由办办AI检测引擎提供判定</p>
+        <p>GPT 接口能力检测</p><p>结果仅供本次调用参考</p>
       </footer>
     </main>
   );

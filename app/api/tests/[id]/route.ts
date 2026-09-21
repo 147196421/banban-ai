@@ -1,7 +1,5 @@
 export const dynamic = "force-dynamic";
 
-const MANXUE_TESTS_URL = "https://manxue.ai/api/v1/tests";
-
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
@@ -9,7 +7,12 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   }
 
   try {
-    const response = await fetch(`${MANXUE_TESTS_URL}/${encodeURIComponent(id)}`, {
+    const testsUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
+    if (!testsUrl?.startsWith("https://")) {
+      return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
+    }
+
+    const response = await fetch(`${testsUrl}/${encodeURIComponent(id)}`, {
       headers: { Accept: "application/json" },
       cache: "no-store",
       redirect: "manual",

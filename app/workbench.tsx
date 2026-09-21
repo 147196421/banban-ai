@@ -123,6 +123,12 @@ export function BanbanWorkbench() {
     return { label, tone, summary, duration, inputTokens, outputTokens };
   }, [benchmark, runError, runState, task]);
 
+  const pelicanHtml = useMemo(() => {
+    if (benchmark !== "frontend" || runState !== "success") return "";
+    const generated = asRecord(task?.result);
+    return typeof generated.html === "string" ? generated.html.trim() : "";
+  }, [benchmark, runState, task]);
+
   function resetModels() {
     setModels([]);
     setSelectedModel("");
@@ -355,6 +361,31 @@ export function BanbanWorkbench() {
             {result.tone === "error" && <AlertTriangle aria-hidden="true" />}
             {result.summary}
           </p>
+
+          {benchmark === "frontend" && runState === "success" && (
+            <section className="pelican-preview" aria-label="鹈鹕作品浏览器预览">
+              <div className="preview-chrome">
+                <span className="preview-lights" aria-hidden="true"><i /><i /><i /></span>
+                <span className="preview-address">模型生成作品 · 安全沙箱</span>
+                <span className="preview-live">实时预览</span>
+              </div>
+              {pelicanHtml ? (
+                <iframe
+                  className="pelican-frame"
+                  title="模型生成的鹈鹕骑自行车动画"
+                  srcDoc={pelicanHtml}
+                  sandbox="allow-scripts"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="preview-missing">
+                  <Braces aria-hidden="true" />
+                  <strong>本次结果没有返回可预览的 HTML</strong>
+                  <span>仍可参考上方质量判定；重新检测可能获得完整作品。</span>
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="metric-row">
             <div><Clock3 aria-hidden="true" /><span>响应耗时</span><strong>{result.duration ? `${(result.duration / 1000).toFixed(1)} s` : "—"}</strong></div>

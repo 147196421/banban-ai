@@ -32,7 +32,7 @@ type Benchmark = "reasoning" | "frontend";
 type RunState = "idle" | "submitting" | "polling" | "success" | "error";
 type JsonRecord = Record<string, unknown>;
 
-const steps = ["验证接口", "发送测试", "分析回答", "生成报告"];
+const steps = ["验证接口", "执行测试", "分析结果", "生成报告"];
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function asRecord(value: unknown): JsonRecord {
@@ -48,7 +48,7 @@ function readableError(value: unknown, fallback: string) {
 
 export function BanbanWorkbench() {
   const [benchmark, setBenchmark] = useState<Benchmark>("reasoning");
-  const [baseUrl, setBaseUrl] = useState("https://api.openai.com/v1");
+  const [baseUrl, setBaseUrl] = useState("https://api.banban.plus/v1");
   const [apiKey, setApiKey] = useState("");
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
@@ -77,9 +77,9 @@ export function BanbanWorkbench() {
     let summary = "获取模型并发起测试后，这里会显示判定结果。";
 
     if (runState === "submitting") {
-      label = "正在提交";
+      label = "正在启动";
       tone = "running";
-      summary = "正在验证接口与检测参数。";
+      summary = "正在验证接口并准备本次检测。";
     } else if (runState === "polling") {
       label = task?.phase === "classifying" ? "正在判定" : "正在生成";
       tone = "running";
@@ -279,7 +279,7 @@ export function BanbanWorkbench() {
             <span className="note-icon">{benchmark === "reasoning" ? <CircleGauge aria-hidden="true" /> : <Braces aria-hidden="true" />}</span>
             <div>
               <strong>{benchmark === "reasoning" ? "固定答案逻辑题" : "鹈鹕骑自行车动画题"}</strong>
-              <p>{benchmark === "reasoning" ? "回答中出现独立的 21 即通过，用于检测固定推理题表现。" : "生成单文件 HTML，由公开分类服务判定正常、疑似降智或无法判定。"}</p>
+              <p>{benchmark === "reasoning" ? "回答中出现独立的 21 即通过，用于检测固定推理题表现。" : "生成单文件 HTML，由办办AI检测引擎判定正常、疑似降智或无法判定。"}</p>
             </div>
           </div>
 
@@ -288,7 +288,7 @@ export function BanbanWorkbench() {
               <Label htmlFor="base-url">接口地址</Label>
               <div className="field-control">
                 <Network aria-hidden="true" />
-                <Input id="base-url" inputMode="url" value={baseUrl} onChange={(event) => { setBaseUrl(event.target.value); resetModels(); }} placeholder="https://api.openai.com/v1" />
+                <Input id="base-url" inputMode="url" value={baseUrl} onChange={(event) => { setBaseUrl(event.target.value); resetModels(); }} placeholder="https://api.banban.plus/v1" />
               </div>
             </div>
 
@@ -338,7 +338,7 @@ export function BanbanWorkbench() {
 
           <div className="security-note">
             <ShieldCheck aria-hidden="true" />
-            <span>开始检测后，接口地址、模型名和 API Key 会临时提交至满血AI公开检测服务，由其调用上游并返回判定；办办AI不保存密钥。</span>
+            <span>接口地址、模型名和 API Key 仅用于本次检测；办办AI不会保存你的密钥。</span>
           </div>
 
           <Button className="start-button" size="lg" disabled={!ready} onClick={startTest}>
@@ -410,13 +410,13 @@ export function BanbanWorkbench() {
 
       <section className="foundation-grid" id="method" aria-label="检测判定方式">
         <article><Eye aria-hidden="true" /><div><h3>只测试 GPT</h3><p>自动读取接口模型，并过滤非 GPT 与音频、图像等非文本模型。</p></div></article>
-        <article><CircleGauge aria-hidden="true" /><div><h3>固定题目判定</h3><p>糖果题检查正确结果；动画题由公开分类服务分析完成质量。</p></div></article>
+        <article><CircleGauge aria-hidden="true" /><div><h3>固定题目判定</h3><p>糖果题检查正确结果；动画题由办办AI检测引擎分析完成质量。</p></div></article>
         <article><ShieldCheck aria-hidden="true" /><div><h3>结果不等于验真</h3><p>测试反映本次接口输出水平，不能证明中转服务实际使用的模型身份。</p></div></article>
       </section>
 
       <footer>
         <a className="brand footer-brand" href="#top"><span>办办</span><span className="brand-ai">AI</span></a>
-        <p>GPT 接口能力检测</p><p>判定来源：满血AI公开检测接口</p>
+        <p>GPT 接口能力检测</p><p>由办办AI检测引擎提供判定</p>
       </footer>
     </main>
   );

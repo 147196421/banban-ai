@@ -1,3 +1,5 @@
+import { localizeErrorPayload } from "@/lib/user-facing-error";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -19,7 +21,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       signal: AbortSignal.timeout(15_000),
     });
     const payload = await response.json().catch(() => ({ error: "检测服务返回了无效响应" }));
-    return Response.json(payload, { status: response.status });
+    const localized = localizeErrorPayload(payload, "暂时无法查询检测结果", response.status, "poll");
+    return Response.json(localized, { status: response.status });
   } catch (error) {
     const timeout = error instanceof Error && error.name === "TimeoutError";
     return Response.json(

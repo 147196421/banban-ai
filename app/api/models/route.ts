@@ -1,4 +1,5 @@
 import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
+import { toChineseError } from "@/lib/user-facing-error";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,9 @@ export async function POST(request: Request) {
       | null;
 
     if (!response.ok) {
-      const message = payload?.error?.message || `上游接口返回 ${response.status}`;
-      return Response.json({ error: message }, { status: response.status === 401 ? 401 : 502 });
+      const status = response.status;
+      const message = toChineseError(payload?.error, "读取模型失败，请检查接口地址和 API Key", status, "models");
+      return Response.json({ error: message }, { status: [400, 401, 403, 404, 429].includes(status) ? status : 502 });
     }
 
     const models = Array.isArray(payload?.data)
@@ -44,8 +46,10 @@ export async function POST(request: Request) {
 
     return Response.json({ models: [...new Set(models)] });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "模型列表读取失败";
     const timeout = error instanceof Error && error.name === "TimeoutError";
-    return Response.json({ error: timeout ? "接口响应超时" : message }, { status: 400 });
+    return Response.json(
+      { error: timeout ? "接口响应超时，请稍后重试" : toChineseError(error, "无法读取模型，请检查接口地址和网络", undefined, "models") },
+      { status: 400 },
+    );
   }
 }

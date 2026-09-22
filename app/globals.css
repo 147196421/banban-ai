@@ -233,6 +233,19 @@ a { color: inherit; text-decoration: none; }
 .benchmark-tabs button:first-child[data-state="active"] { background: #ffe68f; color: #20212c; box-shadow: inset 0 -4px 0 #e0ad18; }
 .benchmark-tabs button:last-child[data-state="active"] { background: #ffd8d0; color: #20212c; box-shadow: inset 0 -4px 0 #ff7f70; }
 .benchmark-tabs svg { width: 17px; }
+.tab-status {
+  margin-left: auto;
+  padding: 2px 5px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: .62rem;
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+.tab-status-running { color: #274cc2; background: #e8edff; }
+.tab-status-success { color: #087560; background: #dcf7ee; }
+.tab-status-error { color: #a53535; background: #fff0ed; }
 
 .benchmark-note {
   margin: 18px 0 26px;

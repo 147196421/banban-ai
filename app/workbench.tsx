@@ -54,7 +54,7 @@ function readableError(value: unknown, fallback: string) {
 
 export function BanbanWorkbench() {
   const [benchmark, setBenchmark] = useState<Benchmark>("reasoning");
-  const [baseUrl, setBaseUrl] = useState("https://api.banban.plus/v1");
+  const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState("");

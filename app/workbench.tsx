@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -29,9 +29,20 @@ import { toChineseError } from "@/lib/user-facing-error";
 type Benchmark = "reasoning" | "frontend";
 type RunState = "idle" | "submitting" | "polling" | "success" | "error";
 type JsonRecord = Record<string, unknown>;
+type TestRun = {
+  runState: RunState;
+  task: JsonRecord | null;
+  taskId: string;
+  runError: string;
+  model: string;
+  startedAt: number;
+};
+type TestRuns = Record<Benchmark, TestRun>;
 
 const steps = ["验证接口", "执行测试", "分析结果", "生成报告"];
-const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const storedRunsKey = "banban-ai:test-runs:v1";
+const emptyRun = (): TestRun => ({ runState: "idle", task: null, taskId: "", runError: "", model: "", startedAt: 0 });
+const emptyRuns = (): TestRuns => ({ reasoning: emptyRun(), frontend: emptyRun() });
 
 function asRecord(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
@@ -51,11 +62,136 @@ export function BanbanWorkbench() {
   const [effort, setEffort] = useState("medium");
   const [modelLoading, setModelLoading] = useState(false);
   const [modelMessage, setModelMessage] = useState("");
-  const [runState, setRunState] = useState<RunState>("idle");
-  const [task, setTask] = useState<JsonRecord | null>(null);
-  const [runError, setRunError] = useState("");
+  const [runs, setRuns] = useState<TestRuns>(emptyRuns);
+  const [storageReady, setStorageReady] = useState(false);
+  const [resumeTick, setResumeTick] = useState(0);
   const [baseUrlTouched, setBaseUrlTouched] = useState(false);
   const [apiKeyTouched, setApiKeyTouched] = useState(false);
+
+  const currentRun = runs[benchmark];
+  const { runState, task, runError } = currentRun;
+
+  const patchRun = useCallback((kind: Benchmark, patch: Partial<TestRun>) => {
+    setRuns((previous) => ({ ...previous, [kind]: { ...previous[kind], ...patch } }));
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(storedRunsKey);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<TestRuns>;
+        const restored = emptyRuns();
+        for (const kind of ["reasoning", "frontend"] as const) {
+          const saved = parsed[kind];
+          if (!saved || typeof saved !== "object") continue;
+          const validStates: RunState[] = ["idle", "submitting", "polling", "success", "error"];
+          const savedState = validStates.includes(saved.runState as RunState) ? saved.runState as RunState : "idle";
+          const runState = savedState === "submitting" && !saved.taskId ? "idle" : savedState;
+          restored[kind] = { ...restored[kind], ...saved, runState };
+        }
+        setRuns(restored);
+      }
+    } catch {
+      window.localStorage.removeItem(storedRunsKey);
+    } finally {
+      setStorageReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    try {
+      window.localStorage.setItem(storedRunsKey, JSON.stringify(runs));
+    } catch {
+      // 浏览器空间不足时仍保留当前页面内的任务状态。
+    }
+  }, [runs, storageReady]);
+
+  useEffect(() => {
+    const resume = () => {
+      if (document.visibilityState === "visible") setResumeTick((value) => value + 1);
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("online", resume);
+    return () => {
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("online", resume);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    let stopped = false;
+    const timers: number[] = [];
+    const controllers: AbortController[] = [];
+
+    const schedule = (kind: Benchmark, taskId: string, delay = 0) => {
+      const timer = window.setTimeout(() => void check(kind, taskId), delay);
+      timers.push(timer);
+    };
+
+    const check = async (kind: Benchmark, taskId: string) => {
+      if (stopped || document.visibilityState === "hidden") return;
+      const controller = new AbortController();
+      controllers.push(controller);
+      try {
+        const response = await fetch(`/api/tests/${encodeURIComponent(taskId)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = (await response.json()) as JsonRecord;
+        if (!response.ok) {
+          const message = toChineseError(data.error, "查询检测结果失败，请稍后重试", response.status, "poll");
+          if (response.status >= 500 || response.status === 429) {
+            if (!stopped) schedule(kind, taskId, 5000);
+            return;
+          }
+          patchRun(kind, { runState: "error", runError: message, task: data });
+          return;
+        }
+
+        const status = String(data.status);
+        if (status === "succeeded") {
+          patchRun(kind, { runState: "success", runError: "", task: data });
+          return;
+        }
+        if (["failed", "cancelled"].includes(status)) {
+          patchRun(kind, {
+            runState: "error",
+            runError: toChineseError(data.error, "检测任务未能完成，请重新尝试", undefined, "test"),
+            task: data,
+          });
+          return;
+        }
+
+        patchRun(kind, { runState: "polling", task: data });
+        if (!stopped) schedule(kind, taskId, 3000);
+      } catch (error) {
+        if (!stopped && !(error instanceof DOMException && error.name === "AbortError")) {
+          schedule(kind, taskId, 5000);
+        }
+      }
+    };
+
+    for (const kind of ["reasoning", "frontend"] as const) {
+      const run = runs[kind];
+      if (run.runState === "polling" && run.taskId) schedule(kind, run.taskId);
+    }
+
+    return () => {
+      stopped = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+      controllers.forEach((controller) => controller.abort());
+    };
+  }, [
+    patchRun,
+    resumeTick,
+    runs.frontend.runState,
+    runs.frontend.taskId,
+    runs.reasoning.runState,
+    runs.reasoning.taskId,
+    storageReady,
+  ]);
 
   const modelIsGpt = /(^|\/)gpt-/i.test(selectedModel.trim());
   const baseUrlError = !baseUrl.trim()
@@ -142,8 +278,6 @@ export function BanbanWorkbench() {
     setModels([]);
     setSelectedModel("");
     setModelMessage("");
-    setTask(null);
-    setRunState("idle");
   }
 
   async function fetchModels() {
@@ -181,45 +315,27 @@ export function BanbanWorkbench() {
     }
   }
 
-  async function pollTask(id: string) {
-    for (let attempt = 0; attempt < 180; attempt += 1) {
-      await wait(3000);
-      const response = await fetch(`/api/tests/${encodeURIComponent(id)}`, { cache: "no-store" });
-      const data = (await response.json()) as JsonRecord;
-      if (!response.ok) throw new Error(toChineseError(data.error, "查询检测结果失败，请稍后重试", response.status, "poll"));
-      setTask(data);
-      if (["succeeded", "failed", "cancelled"].includes(String(data.status))) return data;
-    }
-    throw new Error("检测等待超过 9 分钟，请稍后重新尝试。");
-  }
-
   async function startTest() {
     if (!ready) return;
-    setTask(null);
-    setRunError("");
-    setRunState("submitting");
+    const kind = benchmark;
+    const model = selectedModel.trim();
+    patchRun(kind, { runState: "submitting", task: null, taskId: "", runError: "", model, startedAt: Date.now() });
 
     try {
       const response = await fetch("/api/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseUrl, apiKey, model: selectedModel.trim(), benchmark, reasoningEffort: effort }),
+        body: JSON.stringify({ baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort }),
       });
       const created = (await response.json()) as JsonRecord;
       if (!response.ok) throw new Error(toChineseError(created.error, "检测任务创建失败，请稍后重试", response.status, "test"));
       if (typeof created.id !== "string") throw new Error("检测服务没有返回任务 ID");
-
-      setTask(created);
-      setRunState("polling");
-      const completed = await pollTask(created.id);
-      if (completed.status !== "succeeded") {
-        throw new Error(toChineseError(completed.error, "检测任务未能完成，请重新尝试", undefined, "test"));
-      }
-      setTask(completed);
-      setRunState("success");
+      patchRun(kind, { runState: "polling", task: created, taskId: created.id, runError: "" });
     } catch (error) {
-      setRunError(toChineseError(error, "检测失败，请稍后重试", undefined, "test"));
-      setRunState("error");
+      patchRun(kind, {
+        runState: "error",
+        runError: toChineseError(error, "检测失败，请稍后重试", undefined, "test"),
+      });
     }
   }
 
@@ -227,9 +343,6 @@ export function BanbanWorkbench() {
     const next = value as Benchmark;
     setBenchmark(next);
     setEffort(next === "reasoning" ? "medium" : "low");
-    setTask(null);
-    setRunState("idle");
-    setRunError("");
   }
 
   const activeStep = runState === "idle" ? -1 : runState === "submitting" ? 0 : task?.phase === "classifying" ? 2 : runState === "success" ? 3 : 1;
@@ -237,7 +350,16 @@ export function BanbanWorkbench() {
     ? "填写 API Key 后即可读取模型"
     : !modelIsGpt
       ? "先获取或填写一个 GPT 模型"
-      : "测试通常需要 1–5 分钟";
+      : ["submitting", "polling"].includes(runState)
+        ? "任务已保存，可切换项目或暂时离开页面"
+        : "测试通常需要 1–5 分钟";
+  const tabStatus = (kind: Benchmark) => {
+    const state = runs[kind].runState;
+    if (["submitting", "polling"].includes(state)) return { label: "处理中", tone: "running" };
+    if (state === "success") return { label: "已完成", tone: "success" };
+    if (state === "error") return { label: "失败", tone: "error" };
+    return null;
+  };
 
   return (
     <main id="main-content" className="min-h-screen bg-background text-foreground">
@@ -270,8 +392,14 @@ export function BanbanWorkbench() {
 
           <Tabs value={benchmark} onValueChange={changeBenchmark}>
             <TabsList className="benchmark-tabs" aria-label="选择检测项目">
-              <TabsTrigger value="reasoning"><Sparkles aria-hidden="true" />逻辑推理</TabsTrigger>
-              <TabsTrigger value="frontend"><Code2 aria-hidden="true" />鹈鹕动画</TabsTrigger>
+              <TabsTrigger value="reasoning">
+                <Sparkles aria-hidden="true" />逻辑推理
+                {tabStatus("reasoning") && <small className={`tab-status tab-status-${tabStatus("reasoning")?.tone}`}>{tabStatus("reasoning")?.label}</small>}
+              </TabsTrigger>
+              <TabsTrigger value="frontend">
+                <Code2 aria-hidden="true" />鹈鹕动画
+                {tabStatus("frontend") && <small className={`tab-status tab-status-${tabStatus("frontend")?.tone}`}>{tabStatus("frontend")?.label}</small>}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -359,7 +487,7 @@ export function BanbanWorkbench() {
 
           <div className="security-note">
             <ShieldCheck aria-hidden="true" />
-            <span>接口地址、模型名和密钥只用于完成本次检测，办办AI不会保存密钥。</span>
+            <span>API Key 不会保存；任务编号和结果会保存在本机，切换项目、浏览器进入后台或重新打开页面都会自动续查。</span>
           </div>
 
           <div className="start-row">
@@ -373,7 +501,7 @@ export function BanbanWorkbench() {
 
         <div className={`result-panel result-${result.tone}`} id="reports" aria-live="polite">
           <div className="result-topline">
-            <div><span className="section-kicker">结果</span><h2>{selectedModel || "尚未选择模型"}</h2></div>
+            <div><span className="section-kicker">结果</span><h2>{currentRun.model || selectedModel || "尚未选择模型"}</h2></div>
             <span className={`result-state result-state-${result.tone}`}><i aria-hidden="true" />{result.label}</span>
           </div>
 

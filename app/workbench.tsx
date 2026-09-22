@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toChineseError } from "@/lib/user-facing-error";
 
 type Benchmark = "reasoning" | "frontend";
 type RunState = "idle" | "submitting" | "polling" | "success" | "error";
@@ -37,10 +38,7 @@ function asRecord(value: unknown): JsonRecord {
 }
 
 function readableError(value: unknown, fallback: string) {
-  if (typeof value === "string" && value.trim()) return value;
-  const record = asRecord(value);
-  if (typeof record.message === "string") return record.message;
-  return fallback;
+  return toChineseError(value, fallback);
 }
 
 export function BanbanWorkbench() {
@@ -56,9 +54,24 @@ export function BanbanWorkbench() {
   const [runState, setRunState] = useState<RunState>("idle");
   const [task, setTask] = useState<JsonRecord | null>(null);
   const [runError, setRunError] = useState("");
+  const [baseUrlTouched, setBaseUrlTouched] = useState(false);
+  const [apiKeyTouched, setApiKeyTouched] = useState(false);
 
   const modelIsGpt = /(^|\/)gpt-/i.test(selectedModel.trim());
-  const credentialsReady = baseUrl.startsWith("https://") && apiKey.trim().length > 5;
+  const baseUrlError = !baseUrl.trim()
+    ? "请输入接口地址"
+    : !baseUrl.trim().startsWith("https://")
+      ? "接口地址必须以 https:// 开头"
+      : "";
+  const apiKeyError = !apiKey.trim()
+    ? "请输入 API Key"
+    : apiKey.trim().length < 6
+      ? "API Key 太短，请检查是否填写完整"
+      : "";
+  const manualModelError = manualModel && selectedModel.trim() && !modelIsGpt
+    ? "目前只支持 GPT 系列，请填写 gpt- 开头的模型名"
+    : "";
+  const credentialsReady = !baseUrlError && !apiKeyError;
   const ready = credentialsReady && modelIsGpt && !["submitting", "polling"].includes(runState);
 
   const result = useMemo(() => {
@@ -135,7 +148,9 @@ export function BanbanWorkbench() {
 
   async function fetchModels() {
     if (!credentialsReady) {
-      setModelMessage("请先填写有效的 HTTPS 接口地址和 API Key。");
+      setBaseUrlTouched(true);
+      setApiKeyTouched(true);
+      setModelMessage("请先修正上面的接口地址和 API Key。");
       return;
     }
 
@@ -160,7 +175,7 @@ export function BanbanWorkbench() {
       setManualModel(false);
       setModelMessage(`已找到 ${data.models.length} 个 GPT 模型。`);
     } catch (error) {
-      setModelMessage(error instanceof Error ? error.message : "模型列表读取失败");
+      setModelMessage(toChineseError(error, "模型列表读取失败，请稍后重试", undefined, "models"));
     } finally {
       setModelLoading(false);
     }
@@ -171,7 +186,7 @@ export function BanbanWorkbench() {
       await wait(3000);
       const response = await fetch(`/api/tests/${encodeURIComponent(id)}`, { cache: "no-store" });
       const data = (await response.json()) as JsonRecord;
-      if (!response.ok) throw new Error(readableError(data.error, "查询检测结果失败"));
+      if (!response.ok) throw new Error(toChineseError(data.error, "查询检测结果失败，请稍后重试", response.status, "poll"));
       setTask(data);
       if (["succeeded", "failed", "cancelled"].includes(String(data.status))) return data;
     }
@@ -191,19 +206,19 @@ export function BanbanWorkbench() {
         body: JSON.stringify({ baseUrl, apiKey, model: selectedModel.trim(), benchmark, reasoningEffort: effort }),
       });
       const created = (await response.json()) as JsonRecord;
-      if (!response.ok) throw new Error(readableError(created.error, "检测任务创建失败"));
+      if (!response.ok) throw new Error(toChineseError(created.error, "检测任务创建失败，请稍后重试", response.status, "test"));
       if (typeof created.id !== "string") throw new Error("检测服务没有返回任务 ID");
 
       setTask(created);
       setRunState("polling");
       const completed = await pollTask(created.id);
       if (completed.status !== "succeeded") {
-        throw new Error(readableError(completed.error, "检测任务未能完成"));
+        throw new Error(toChineseError(completed.error, "检测任务未能完成，请重新尝试", undefined, "test"));
       }
       setTask(completed);
       setRunState("success");
     } catch (error) {
-      setRunError(error instanceof Error ? error.message : "检测失败，请稍后重试");
+      setRunError(toChineseError(error, "检测失败，请稍后重试", undefined, "test"));
       setRunState("error");
     }
   }
@@ -273,20 +288,41 @@ export function BanbanWorkbench() {
               <Label htmlFor="base-url">接口地址</Label>
               <div className="field-control">
                 <Network aria-hidden="true" />
-                <Input id="base-url" inputMode="url" value={baseUrl} onChange={(event) => { setBaseUrl(event.target.value); resetModels(); }} placeholder="https://api.banban.plus/v1" />
+                <Input
+                  id="base-url"
+                  inputMode="url"
+                  value={baseUrl}
+                  onBlur={() => setBaseUrlTouched(true)}
+                  onChange={(event) => { setBaseUrl(event.target.value); resetModels(); }}
+                  placeholder="https://api.banban.plus/v1"
+                  aria-invalid={baseUrlTouched && Boolean(baseUrlError)}
+                  aria-describedby="base-url-error"
+                />
               </div>
+              <p id="base-url-error" className="inline-error" aria-live="polite">{baseUrlTouched ? baseUrlError : ""}</p>
             </div>
 
             <div className="field field-wide">
               <div className="label-row"><Label htmlFor="api-key">API Key</Label><span>本次使用，不保存</span></div>
               <div className="field-control">
                 <KeyRound aria-hidden="true" />
-                <Input id="api-key" type="password" autoComplete="off" value={apiKey} onChange={(event) => { setApiKey(event.target.value); resetModels(); }} placeholder="输入你的 API Key" />
+                <Input
+                  id="api-key"
+                  type="password"
+                  autoComplete="off"
+                  value={apiKey}
+                  onBlur={() => setApiKeyTouched(true)}
+                  onChange={(event) => { setApiKey(event.target.value); resetModels(); }}
+                  placeholder="输入你的 API Key"
+                  aria-invalid={apiKeyTouched && Boolean(apiKeyError)}
+                  aria-describedby="api-key-error"
+                />
               </div>
+              <p id="api-key-error" className="inline-error" aria-live="polite">{apiKeyTouched ? apiKeyError : ""}</p>
             </div>
 
             <div className="model-discovery field-wide">
-              <Button type="button" variant="outline" className="fetch-models" disabled={!credentialsReady || modelLoading} onClick={fetchModels}>
+              <Button type="button" variant="outline" className="fetch-models" disabled={modelLoading} onClick={fetchModels}>
                 {modelLoading ? <LoaderCircle className="spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
                 {modelLoading ? "正在读取" : models.length ? "重新读取模型" : "读取可用模型"}
               </Button>
@@ -305,7 +341,7 @@ export function BanbanWorkbench() {
                   {models.map((model) => <NativeSelectOption key={model} value={model}>{model}</NativeSelectOption>)}
                 </NativeSelect>
               )}
-              <p id="model-help" aria-live="polite" className={`field-message ${modelMessage && !models.length ? "field-error" : ""}`}>{modelMessage || "仅展示 GPT 文本与推理模型。"}</p>
+              <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || modelMessage || "仅展示 GPT 文本与推理模型。"}</p>
             </div>
 
             <div className="field field-wide">

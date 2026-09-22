@@ -1,4 +1,5 @@
 import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
+import { localizeErrorPayload, toChineseError } from "@/lib/user-facing-error";
 
 export const dynamic = "force-dynamic";
 
@@ -47,10 +48,13 @@ export async function POST(request: Request) {
     });
 
     const payload = await response.json().catch(() => ({ error: "检测服务返回了无效响应" }));
-    return Response.json(payload, { status: response.status });
+    const localized = localizeErrorPayload(payload, "检测任务创建失败，请稍后重试", response.status, "test");
+    return Response.json(localized, { status: response.status });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "检测任务创建失败";
     const timeout = error instanceof Error && error.name === "TimeoutError";
-    return Response.json({ error: timeout ? "检测服务响应超时" : message }, { status: 400 });
+    return Response.json(
+      { error: timeout ? "检测服务响应超时，请稍后重试" : toChineseError(error, "检测任务创建失败，请稍后重试", undefined, "test") },
+      { status: 400 },
+    );
   }
 }

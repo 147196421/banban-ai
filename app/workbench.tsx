@@ -719,7 +719,6 @@ export function BanbanWorkbench() {
                   rows={6}
                   placeholder="描述你想生成的内容。需要网页作品时，请写明生成完整的单文件 HTML。"
                 />
-                <p className="field-message">直接调用你填写的模型接口；自定义生成不参与满血 AI 检测评分。</p>
               </div>
             )}
           </div>
@@ -738,6 +737,28 @@ export function BanbanWorkbench() {
         </div>
 
         <div className={`result-panel result-${result.tone}`} id="reports" aria-live="polite">
+          {benchmark === "custom" ? (
+            <div className="custom-output" aria-busy={runState === "submitting" || runState === "polling"}>
+              {selectedHistoryId && <button className="clear-result custom-back" type="button" onClick={clearCurrentResult}><RotateCcw aria-hidden="true" />返回最新</button>}
+              {runState === "success" && pelicanHtml && (
+                <iframe
+                  key={currentRun.taskId}
+                  className="custom-output-frame"
+                  title="自定义生成作品"
+                  srcDoc={pelicanHtml}
+                  sandbox="allow-scripts"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              {runState === "success" && !pelicanHtml && (
+                <pre className="custom-output-text">{String(asRecord(task?.result).text ?? "")}</pre>
+              )}
+              {(runState === "submitting" || runState === "polling") && (
+                <p className="custom-output-feedback" role="status"><LoaderCircle className="spin" aria-hidden="true" />正在生成…</p>
+              )}
+              {runState === "error" && <p className="custom-output-feedback custom-output-error" role="alert">{result.summary}</p>}
+            </div>
+          ) : <>
           <div className="result-topline">
             <div><span className="section-kicker">{selectedHistoryId ? "历史结果" : "结果"}</span><h2>{currentRun.model || selectedModel || "尚未选择模型"}</h2></div>
             <div className="result-actions">
@@ -751,7 +772,7 @@ export function BanbanWorkbench() {
           </div>
 
           <div className="result-readout" aria-label={`检测结果：${result.label}`}>
-            <span>{benchmark === "custom" ? "自定义创作" : benchmark === "reasoning" ? "逻辑题判定" : ["reference", "manxue"].includes(String(task?.evaluation_source ?? "")) ? "作品质量判定" : "作品结构检查"}</span>
+            <span>{benchmark === "reasoning" ? "逻辑题判定" : ["reference", "manxue"].includes(String(task?.evaluation_source ?? "")) ? "作品质量判定" : "作品结构检查"}</span>
             <strong>{result.label}</strong>
             {result.summary && <p>{result.tone === "error" && <AlertTriangle aria-hidden="true" />}{result.summary}</p>}
           </div>
@@ -763,19 +784,15 @@ export function BanbanWorkbench() {
             </div>
           )}
 
-          {benchmark !== "reasoning" && runState === "success" && pelicanHtml && (
+          {benchmark === "frontend" && runState === "success" && pelicanHtml && (
             <PelicanPreview
               key={currentRun.taskId}
               html={pelicanHtml}
               prompt={pelicanPrompt}
-              title={benchmark === "custom" ? "自定义作品" : "鹈鹕骑行"}
               screenshotUrl={typeof asRecord(task?.result).screenshot_url === "string" && currentRun.taskId
                 ? `/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`
                 : undefined}
             />
-          )}
-          {benchmark === "custom" && runState === "success" && !pelicanHtml && (
-            <div className="custom-text-result"><h3>生成内容</h3><pre>{String(asRecord(task?.result).text ?? "")}</pre></div>
           )}
 
           <div className="metric-row">
@@ -796,6 +813,7 @@ export function BanbanWorkbench() {
               );
             })}
           </ol>}
+          </>}
           <section className="history-section" id="history" aria-label="浏览器历史记录">
             <div className="history-heading"><h2>历史记录</h2><span>访客 ID：{visitorId || "········"} · {history.length}/30</span></div>
             {history.length ? (
@@ -817,7 +835,7 @@ export function BanbanWorkbench() {
                       >
                         <span className="history-main"><strong>{entry.model}</strong><small>{entry.benchmark === "reasoning" ? "糖果" : entry.benchmark === "frontend" ? "鹈鹕" : "自定义"}</small></span>
                         <time dateTime={new Date(entry.startedAt).toISOString()}>{formatTime(entry.startedAt)}</time>
-                        <span className={`history-status history-status-${item.tone}`}>{item.label}</span>
+                        {(entry.benchmark !== "custom" || entry.runState !== "success") && <span className={`history-status history-status-${item.tone}`}>{item.label}</span>}
                       </button>
                       <div className="history-delete-actions">
                         <button type="button" className="history-delete" aria-label={confirmingHistoryId === entry.taskId ? `确认删除 ${entry.model} 的记录` : `删除 ${entry.model} 的记录`} onClick={() => confirmingHistoryId === entry.taskId ? removeHistoryEntry(entry) : setConfirmingHistoryId(entry.taskId)}>

@@ -555,3 +555,8 @@ footer p { margin: 0; }
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
   .spin, .result-state-running i { animation: none !important; }
 }
+.custom-prompt-input { width: 100%; resize: vertical; min-height: 140px; padding: 14px 16px; border: 1px solid #cbd8d4; border-radius: 12px; background: #fff; color: #203530; font: inherit; font-size: 16px; line-height: 1.6; }
+.custom-prompt-input:focus-visible { outline: 2px solid #297464; outline-offset: 2px; }
+.custom-text-result { padding: 20px; border: 1px solid #dae5e2; border-radius: 16px; background: #fff; }
+.custom-text-result h3 { margin: 0 0 12px; font-size: 16px; }
+.custom-text-result pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; }

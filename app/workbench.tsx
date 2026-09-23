@@ -19,6 +19,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  FileText,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PelicanPreview } from "@/components/pelican-preview";
 import { toChineseError } from "@/lib/user-facing-error";
 
-type Benchmark = "reasoning" | "frontend";
+type Benchmark = "reasoning" | "frontend" | "custom";
+const benchmarks: Benchmark[] = ["reasoning", "frontend", "custom"];
 type RunState = "idle" | "submitting" | "polling" | "success" | "error";
 type JsonRecord = Record<string, unknown>;
 type TestRun = {
@@ -51,7 +53,7 @@ const storedVisitorIdKey = "banban-ai:visitor-id:v1";
 const historyLimit = 30;
 const historySizeLimit = 2_500_000;
 const emptyRun = (): TestRun => ({ runState: "idle", task: null, taskId: "", runError: "", model: "", startedAt: 0, finishedAt: 0 });
-const emptyRuns = (): TestRuns => ({ reasoning: emptyRun(), frontend: emptyRun() });
+const emptyRuns = (): TestRuns => ({ reasoning: emptyRun(), frontend: emptyRun(), custom: emptyRun() });
 
 function asRecord(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
@@ -78,7 +80,7 @@ function createVisitorId() {
 function validHistoryEntry(value: unknown): value is HistoryEntry {
   if (!value || typeof value !== "object") return false;
   const entry = value as Partial<HistoryEntry>;
-  return (entry.benchmark === "reasoning" || entry.benchmark === "frontend")
+  return benchmarks.includes(entry.benchmark as Benchmark)
     && typeof entry.taskId === "string"
     && /^[A-Za-z0-9_-]{1,128}$/.test(entry.taskId)
     && typeof entry.startedAt === "number"
@@ -125,13 +127,17 @@ function describeResult(run: TestRun, benchmark: Benchmark) {
   let summary = "";
 
   if (runState === "submitting" || runState === "polling") {
-    label = task?.phase === "classifying" ? "正在判定" : "正在检测";
+    label = benchmark === "custom" ? "正在生成" : task?.phase === "classifying" ? "正在判定" : "正在检测";
     tone = "running";
     summary = "可以离开页面，检测会继续。";
   } else if (runState === "error") {
-    label = "检测失败";
+    label = benchmark === "custom" ? "生成失败" : "检测失败";
     tone = "error";
     summary = runError || "请稍后重试。";
+  } else if (benchmark === "custom" && task) {
+    label = "生成完成";
+    tone = "pass";
+    summary = "";
   } else if (benchmark === "reasoning" && task) {
     if (candyStatus === "passed") {
       label = "通过";
@@ -177,6 +183,7 @@ export function BanbanWorkbench() {
   const [selectedModel, setSelectedModel] = useState("");
   const [manualModel, setManualModel] = useState(false);
   const [effort, setEffort] = useState("high");
+  const [customPrompt, setCustomPrompt] = useState("");
   const [modelLoading, setModelLoading] = useState(false);
   const [modelMessage, setModelMessage] = useState("");
   const [runs, setRuns] = useState<TestRuns>(emptyRuns);
@@ -222,7 +229,7 @@ export function BanbanWorkbench() {
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<TestRuns>;
         const restored = emptyRuns();
-        for (const kind of ["reasoning", "frontend"] as const) {
+        for (const kind of benchmarks) {
           const saved = parsed[kind];
           if (!saved || typeof saved !== "object") continue;
           const validStates: RunState[] = ["idle", "submitting", "polling", "success", "error"];
@@ -259,7 +266,7 @@ export function BanbanWorkbench() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHistory((previous) => {
       let next = previous;
-      for (const kind of ["reasoning", "frontend"] as const) next = mergeHistory(next, kind, runs[kind]);
+      for (const kind of benchmarks) next = mergeHistory(next, kind, runs[kind]);
       return next;
     });
   }, [runs, storageReady]);
@@ -301,7 +308,7 @@ export function BanbanWorkbench() {
       const controller = new AbortController();
       controllers.push(controller);
       try {
-        const response = await fetch(`/v1/tests/${encodeURIComponent(taskId)}`, {
+        const response = await fetch(`/v1/${kind === "custom" ? "generations" : "tests"}/${encodeURIComponent(taskId)}`, {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -346,7 +353,7 @@ export function BanbanWorkbench() {
       }
     };
 
-    for (const kind of ["reasoning", "frontend"] as const) {
+    for (const kind of benchmarks) {
       const run = runs[kind];
       if (run.runState === "polling" && run.taskId) {
         schedule(kind, run.taskId, run.task?.phase === "creating" ? 1200 : 0);
@@ -367,6 +374,8 @@ export function BanbanWorkbench() {
     runs.frontend.taskId,
     runs.reasoning.runState,
     runs.reasoning.taskId,
+    runs.custom.runState,
+    runs.custom.taskId,
     storageReady,
   ]);
 
@@ -374,7 +383,7 @@ export function BanbanWorkbench() {
     .filter((entry) => ["submitting", "polling"].includes(entry.runState))
     .filter((entry) => runs[entry.benchmark].taskId !== entry.taskId)
     .slice(0, 8)
-    .map((entry) => entry.taskId)
+    .map((entry) => `${entry.benchmark}:${entry.taskId}`)
     .join(",");
 
   useEffect(() => {
@@ -383,9 +392,10 @@ export function BanbanWorkbench() {
     const ids = pendingHistoryIds.split(",");
     const refresh = async () => {
       if (document.visibilityState === "hidden") return;
-      await Promise.all(ids.map(async (id) => {
+      await Promise.all(ids.map(async (key) => {
+        const [kind, id] = key.split(":");
         try {
-          const response = await fetch(`/v1/tests/${encodeURIComponent(id)}`, { cache: "no-store" });
+          const response = await fetch(`/v1/${kind === "custom" ? "generations" : "tests"}/${encodeURIComponent(id)}`, { cache: "no-store" });
           if (!response.ok) return;
           const task = await response.json() as JsonRecord;
           if (stopped) return;
@@ -424,17 +434,17 @@ export function BanbanWorkbench() {
     ? "目前只支持 GPT 系列，请填写 gpt- 开头的模型名"
     : "";
   const credentialsReady = !baseUrlError && !apiKeyError;
-  const ready = credentialsReady && modelIsGpt && !["submitting", "polling"].includes(runs[benchmark].runState);
+  const ready = credentialsReady && modelIsGpt && (benchmark !== "custom" || Boolean(customPrompt.trim()) && customPrompt.length <= 12000) && !["submitting", "polling"].includes(runs[benchmark].runState);
 
   const result = describeResult(currentRun, benchmark);
 
   const pelicanHtml = useMemo(() => {
-    if (benchmark !== "frontend" || runState !== "success") return "";
+    if (benchmark === "reasoning" || runState !== "success") return "";
     const generated = asRecord(task?.result);
     return typeof generated.html === "string" && generated.html.trim() ? generated.html : "";
   }, [benchmark, runState, task]);
   const pelicanPrompt = useMemo(() => {
-    if (benchmark !== "frontend" || runState !== "success") return "";
+    if (benchmark === "reasoning" || runState !== "success") return "";
     const generated = asRecord(task?.result);
     for (const value of [generated.prompt, generated.test_prompt, task?.prompt, task?.test_prompt]) {
       if (typeof value === "string" && value.trim()) return value;
@@ -541,10 +551,10 @@ export function BanbanWorkbench() {
     patchRun(kind, queuedRun);
 
     try {
-      const response = await fetch("/v1/tests", {
+      const response = await fetch(kind === "custom" ? "/v1/generations" : "/v1/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort }),
+        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort, ...(kind === "custom" ? { prompt: customPrompt.trim() } : {}) }),
         keepalive: true,
       });
       const created = (await response.json()) as JsonRecord;
@@ -580,7 +590,7 @@ export function BanbanWorkbench() {
   const activeStep = runState === "idle" ? -1 : runState === "submitting" || task?.phase === "creating" ? 0 : task?.phase === "classifying" ? 2 : runState === "success" ? 3 : 1;
   const hasFinishedRun = ["success", "error"].includes(runState);
   const latestRunState = runs[benchmark].runState;
-  const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : "约 1–5 分钟";
+  const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : benchmark === "custom" && !customPrompt.trim() ? "输入提示词" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : "约 1–5 分钟";
   return (
     <main id="main-content" className="min-h-screen bg-background text-foreground">
       <a className="skip-link" href="#workbench">跳到检测表单</a>
@@ -609,6 +619,9 @@ export function BanbanWorkbench() {
               </TabsTrigger>
               <TabsTrigger value="frontend">
                 <Code2 aria-hidden="true" />鹈鹕骑行
+              </TabsTrigger>
+              <TabsTrigger value="custom">
+                <FileText aria-hidden="true" />自定义生成
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -694,12 +707,27 @@ export function BanbanWorkbench() {
                 {benchmark === "reasoning" && <NativeSelectOption value="ultra">极限</NativeSelectOption>}
               </NativeSelect>
             </div>
+            {benchmark === "custom" && (
+              <div className="field field-wide">
+                <Label htmlFor="custom-prompt">生成提示词</Label>
+                <textarea
+                  id="custom-prompt"
+                  className="custom-prompt-input"
+                  value={customPrompt}
+                  onChange={(event) => setCustomPrompt(event.target.value)}
+                  maxLength={12000}
+                  rows={6}
+                  placeholder="描述你想生成的内容。需要网页作品时，请写明生成完整的单文件 HTML。"
+                />
+                <p className="field-message">直接调用你填写的模型接口；自定义生成不参与满血 AI 检测评分。</p>
+              </div>
+            )}
           </div>
 
           <div className="start-row">
             <span id="action-hint">{actionHint}</span>
             <Button className="start-button" size="lg" disabled={!ready} onClick={startTest} aria-describedby="action-hint">
-              {["submitting", "polling"].includes(latestRunState) ? "正在检测" : ["success", "error"].includes(latestRunState) ? "重新检测" : "开始检测"}
+              {["submitting", "polling"].includes(latestRunState) ? benchmark === "custom" ? "正在生成" : "正在检测" : ["success", "error"].includes(latestRunState) ? benchmark === "custom" ? "重新生成" : "重新检测" : benchmark === "custom" ? "开始生成" : "开始检测"}
               {["submitting", "polling"].includes(latestRunState)
                 ? <LoaderCircle className="spin" aria-hidden="true" />
                 : ["success", "error"].includes(latestRunState)
@@ -723,7 +751,7 @@ export function BanbanWorkbench() {
           </div>
 
           <div className="result-readout" aria-label={`检测结果：${result.label}`}>
-            <span>{benchmark === "reasoning" ? "逻辑题判定" : ["reference", "manxue"].includes(String(task?.evaluation_source ?? "")) ? "作品质量判定" : "作品结构检查"}</span>
+            <span>{benchmark === "custom" ? "自定义创作" : benchmark === "reasoning" ? "逻辑题判定" : ["reference", "manxue"].includes(String(task?.evaluation_source ?? "")) ? "作品质量判定" : "作品结构检查"}</span>
             <strong>{result.label}</strong>
             {result.summary && <p>{result.tone === "error" && <AlertTriangle aria-hidden="true" />}{result.summary}</p>}
           </div>
@@ -735,16 +763,19 @@ export function BanbanWorkbench() {
             </div>
           )}
 
-          {benchmark === "frontend" && runState === "success" && (
+          {benchmark !== "reasoning" && runState === "success" && pelicanHtml && (
             <PelicanPreview
               key={currentRun.taskId}
               html={pelicanHtml}
               prompt={pelicanPrompt}
+              title={benchmark === "custom" ? "自定义作品" : "鹈鹕骑行"}
               screenshotUrl={typeof asRecord(task?.result).screenshot_url === "string" && currentRun.taskId
                 ? `/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`
                 : undefined}
-              screenshotError={typeof asRecord(task?.result).screenshot_error === "string"}
             />
+          )}
+          {benchmark === "custom" && runState === "success" && !pelicanHtml && (
+            <div className="custom-text-result"><h3>生成内容</h3><pre>{String(asRecord(task?.result).text ?? "")}</pre></div>
           )}
 
           <div className="metric-row">
@@ -784,7 +815,7 @@ export function BanbanWorkbench() {
                           document.getElementById("reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
                         }}
                       >
-                        <span className="history-main"><strong>{entry.model}</strong><small>{entry.benchmark === "reasoning" ? "糖果" : "鹈鹕"}</small></span>
+                        <span className="history-main"><strong>{entry.model}</strong><small>{entry.benchmark === "reasoning" ? "糖果" : entry.benchmark === "frontend" ? "鹈鹕" : "自定义"}</small></span>
                         <time dateTime={new Date(entry.startedAt).toISOString()}>{formatTime(entry.startedAt)}</time>
                         <span className={`history-status history-status-${item.tone}`}>{item.label}</span>
                       </button>

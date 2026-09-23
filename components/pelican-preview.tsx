@@ -12,7 +12,7 @@ type Props = {
   html: string;
   prompt?: string;
   screenshotUrl?: string;
-  screenshotError?: boolean;
+  title?: string;
 };
 
 function useElementWidth() {
@@ -26,7 +26,7 @@ function useElementWidth() {
   return [measure, width] as const;
 }
 
-export function PelicanPreview({ html, prompt, screenshotUrl, screenshotError }: Props) {
+export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑行" }: Props) {
   const [imageFailed, setImageFailed] = useState(false);
   const [detailMode, setDetailMode] = useState<DetailMode>("work");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
@@ -45,7 +45,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, screenshotError }:
     <iframe
       className="pelican-canvas"
       style={{ transform: `scale(${width / canvasWidth})` }}
-      title={interactive ? "鹈鹕作品完整预览" : "鹈鹕作品缩略预览"}
+      title={interactive ? `${title}完整预览` : `${title}缩略预览`}
       srcDoc={html}
       sandbox="allow-scripts"
       referrerPolicy="no-referrer"
@@ -74,7 +74,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, screenshotError }:
   };
 
   return (
-    <section className="pelican-preview" aria-label="鹈鹕作品浏览器预览">
+    <section className="pelican-preview" aria-label={`${title}浏览器预览`}>
       <div className="preview-chrome">
         <span className="preview-lights" aria-hidden="true"><i /><i /><i /></span>
         <span className="preview-address">模型生成作品</span>
@@ -82,25 +82,22 @@ export function PelicanPreview({ html, prompt, screenshotUrl, screenshotError }:
           查看完整作品 <ArrowUpRight aria-hidden="true" />
         </button>
       </div>
-      {(screenshotError || imageFailed) && !hasScreenshot && html && (
-        <p className="preview-note">截图暂不可用，已显示作品预览。</p>
-      )}
       {hasScreenshot || html ? (
         <div className="preview-surface" ref={thumbnailRef}>
           {hasScreenshot ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={screenshotUrl} alt="鹈鹕骑行作品预览" loading="lazy" onError={() => setImageFailed(true)} />
+            <img src={screenshotUrl} alt={`${title}作品预览`} loading="lazy" onError={() => setImageFailed(true)} />
           ) : thumbnailWidth > 0 ? (
             <div className="pelican-canvas-wrapper" aria-hidden="true">{renderCanvas(thumbnailWidth, false)}</div>
           ) : null}
-          <button type="button" className="preview-surface-open" onClick={open} aria-label="查看完整鹈鹕作品" />
+          <button type="button" className="preview-surface-open" onClick={open} aria-label={`查看完整${title}作品`} />
         </div>
       ) : (
         <div className="preview-missing"><Braces aria-hidden="true" /><strong>暂无可预览作品</strong></div>
       )}
-      <dialog className="pelican-dialog" ref={dialog} aria-label="鹈鹕作品完整预览">
+      <dialog className="pelican-dialog" ref={dialog} aria-label={`${title}作品完整预览`}>
         <div className="pelican-dialog-head">
-          <strong>鹈鹕骑行</strong>
+          <strong>{title}</strong>
           <div className="pelican-dialog-actions">
             {detailMode === "code" && html && (
               <>
@@ -127,7 +124,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, screenshotError }:
           ) : detailMode === "prompt" && html ? (
             <div className="pelican-prompt" role="tabpanel" id="pelican-panel-prompt" aria-labelledby="pelican-tab-prompt">
               <p>{prompt || fixedPromptSummary}</p>
-              <small>{prompt ? "本次接口返回的测试提示词" : "标准固定测试题目 · 本次接口结果未单独返回提示词"}</small>
+              <small>{title === "鹈鹕骑行" ? prompt ? "本次接口返回的测试提示词" : "标准固定测试题目 · 本次接口结果未单独返回提示词" : "本次输入的提示词"}</small>
             </div>
           ) : detailMode === "screenshot" && hasScreenshot ? (
             <div className="pelican-screenshot-panel" role="tabpanel" id="pelican-panel-work" aria-labelledby="pelican-tab-work">

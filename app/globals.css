@@ -267,6 +267,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .manual-link:hover { text-decoration: underline; text-underline-offset: 4px; }
 .field-message { margin: 0; color: #7c8792; font-size: 12px; line-height: 1.5; }
+.remember-credentials { grid-column: 1 / -1; min-height: 44px; display: flex; align-items: center; gap: 9px; cursor: pointer; color: #36414d; font-size: 13px; font-weight: 600; }
+.remember-credentials input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: #3659b7; cursor: pointer; }
+.remember-credentials small { margin-left: auto; color: #7c8792; font-size: 12px; font-weight: 400; white-space: nowrap; }
+.credentials-storage-error { grid-column: 1 / -1; }
 .field-error { color: #a94a4a; }
 .inline-error { min-height: 0; margin: -2px 0 0; color: #ad4a4a; font-size: 12px; line-height: 1.45; }
 .inline-error:empty { display: none; }
@@ -380,8 +384,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .preview-lights i:nth-child(2) { background: #c7a464; }
 .preview-lights i:nth-child(3) { background: #6c9f8e; }
 .preview-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: 12px; font-weight: 600; }
-.preview-expand { min-height: 42px; border: 0; background: transparent; color: #416a87; font-size: 12px; font-weight: 650; cursor: pointer; white-space: nowrap; }
-.preview-expand svg { width: 13px; height: 13px; vertical-align: -2px; }
+.preview-expand { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 0; background: transparent; color: #416a87; font-size: 12px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.preview-expand svg { width: 13px; height: 13px; flex: none; }
 .preview-expand:disabled { opacity: .45; cursor: default; }
 .preview-expand:focus-visible, .preview-surface-open:focus-visible, .pelican-dialog-head button:focus-visible { outline: 2px solid #355f90; outline-offset: -3px; }
 .preview-note { margin: 0; padding: 7px 11px; color: #8a5a37; font-size: 12px; }

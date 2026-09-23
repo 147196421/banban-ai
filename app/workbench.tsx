@@ -50,6 +50,7 @@ const steps = ["验证接口", "执行测试", "分析结果", "生成报告"];
 const storedRunsKey = "banban-ai:test-runs:v1";
 const storedHistoryKey = "banban-ai:history:v1";
 const storedVisitorIdKey = "banban-ai:visitor-id:v1";
+const storedCredentialsKey = "banban-ai:credentials:v1";
 const historyLimit = 30;
 const historySizeLimit = 2_500_000;
 const emptyRun = (): TestRun => ({ runState: "idle", task: null, taskId: "", runError: "", model: "", startedAt: 0, finishedAt: 0 });
@@ -176,6 +177,8 @@ export function BanbanWorkbench() {
   const [benchmark, setBenchmark] = useState<Benchmark>("reasoning");
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [rememberCredentials, setRememberCredentials] = useState(false);
+  const [credentialsStorageError, setCredentialsStorageError] = useState("");
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
@@ -196,6 +199,7 @@ export function BanbanWorkbench() {
   const [baseUrlTouched, setBaseUrlTouched] = useState(false);
   const [apiKeyTouched, setApiKeyTouched] = useState(false);
   const deletedRunIds = useRef(new Set<string>());
+  const storedCredentialsPresent = useRef(false);
 
   const selectedHistory = history.find((entry) => entry.taskId === selectedHistoryId && entry.benchmark === benchmark);
   const currentRun = selectedHistory || runs[benchmark];
@@ -208,11 +212,29 @@ export function BanbanWorkbench() {
   useEffect(() => {
     let restoredHistory: HistoryEntry[] = [];
     try {
+      const saved = window.localStorage.getItem(storedCredentialsKey);
+      if (saved) {
+        const credentials = JSON.parse(saved) as Record<string, unknown>;
+        if (credentials.version === 1 && typeof credentials.baseUrl === "string" && credentials.baseUrl.length <= 4096
+          && typeof credentials.apiKey === "string" && credentials.apiKey.length <= 4096) {
+          // 首次挂载时才从当前浏览器恢复用户主动保存的凭据。
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setBaseUrl(credentials.baseUrl);
+          setApiKey(credentials.apiKey);
+          setRememberCredentials(true);
+          storedCredentialsPresent.current = true;
+        } else {
+          window.localStorage.removeItem(storedCredentialsKey);
+        }
+      }
+    } catch {
+      // 浏览器禁用存储时仍允许手动填写并发起检测。
+    }
+    try {
       const savedId = window.localStorage.getItem(storedVisitorIdKey);
       const id = savedId && /^[A-HJ-NP-Z2-9]{8}$/.test(savedId) ? savedId : createVisitorId();
       window.localStorage.setItem(storedVisitorIdKey, id);
       // 首次挂载后从本地存储恢复访客 ID，避免服务端读取 window。
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisitorId(id);
     } catch {
       setVisitorId(createVisitorId());
@@ -250,6 +272,25 @@ export function BanbanWorkbench() {
       setStorageReady(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    try {
+      if (rememberCredentials) {
+        if (baseUrl.length > 4096 || apiKey.length > 4096) throw new Error("配置过长");
+        window.localStorage.setItem(storedCredentialsKey, JSON.stringify({ version: 1, baseUrl, apiKey }));
+        storedCredentialsPresent.current = true;
+      } else if (storedCredentialsPresent.current) {
+        window.localStorage.removeItem(storedCredentialsKey);
+        storedCredentialsPresent.current = false;
+      }
+      // 同步浏览器存储的结果提示，不影响本次输入与检测。
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCredentialsStorageError("");
+    } catch {
+      setCredentialsStorageError(rememberCredentials ? "此浏览器无法保存接口地址和密钥，本次仍可正常使用。" : "此浏览器未能清除已保存的配置，请清除此站点的数据。");
+    }
+  }, [baseUrl, apiKey, rememberCredentials, storageReady]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -646,7 +687,7 @@ export function BanbanWorkbench() {
             </div>
 
             <div className="field field-wide">
-              <div className="label-row"><Label htmlFor="api-key">API Key</Label><span>本次使用，不保存</span></div>
+              <div className="label-row"><Label htmlFor="api-key">API Key</Label><span>{rememberCredentials ? "仅保存在此浏览器" : "本次使用，不保存"}</span></div>
               <div className="field-control">
                 <KeyRound aria-hidden="true" />
                 <Input
@@ -672,6 +713,12 @@ export function BanbanWorkbench() {
               </div>
               <p id="api-key-error" className="inline-error" aria-live="polite">{apiKeyTouched ? apiKeyError : ""}</p>
             </div>
+
+            <label className="remember-credentials" htmlFor="remember-credentials">
+              <input id="remember-credentials" type="checkbox" checked={rememberCredentials} onChange={(event) => setRememberCredentials(event.target.checked)} />
+              <span>记住接口地址和 API Key</span><small>仅此浏览器</small>
+            </label>
+            {credentialsStorageError && <p className="field-message field-error credentials-storage-error" role="status">{credentialsStorageError}</p>}
 
             <div className="model-discovery field-wide">
               <Button type="button" variant="outline" className="fetch-models" disabled={modelLoading} onClick={fetchModels}>

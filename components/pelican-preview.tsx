@@ -79,7 +79,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
         <span className="preview-lights" aria-hidden="true"><i /><i /><i /></span>
         <span className="preview-address">模型生成作品</span>
         <button type="button" className="preview-expand" onClick={open} disabled={!hasScreenshot && !html}>
-          查看完整作品 <ArrowUpRight aria-hidden="true" />
+          <ArrowUpRight aria-hidden="true" />查看完整作品
         </button>
       </div>
       {html || hasScreenshot ? (

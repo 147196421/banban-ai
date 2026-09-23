@@ -10,7 +10,7 @@ import {
 import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
 import { localizeErrorPayload, toChineseError } from "@/lib/user-facing-error";
 import { checkRateLimit } from "@/db/rate-limit";
-import { getDetectorService, storedDetectorTask } from "@/lib/detector-service";
+import { getDetectorService, manxueVisitorConfigUrl, storedDetectorTask } from "@/lib/detector-service";
 
 export const dynamic = "force-dynamic";
 
@@ -35,17 +35,17 @@ function storedTaskResponse(task: Awaited<ReturnType<typeof getStoredTask>>) {
 
 export async function POST(request: Request) {
   try {
-    const service = getDetectorService();
-    if (!service) {
-      return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
-    }
-
     const body = (await request.json()) as Record<string, unknown>;
     const submissionId = typeof body.submissionId === "string" ? body.submissionId.trim() : "";
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const model = typeof body.model === "string" ? body.model.trim() : "";
     const benchmark = body.benchmark === "frontend" ? "pelican" : "candy";
+    const freeCreation = benchmark === "pelican" && body.freeCreation === true;
+    const service = getDetectorService(freeCreation ? "manxue-visitor" : undefined);
+    if (!service) {
+      return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
+    }
     const effort = typeof body.reasoningEffort === "string" ? body.reasoningEffort : "high";
 
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId)) {
@@ -84,12 +84,23 @@ export async function POST(request: Request) {
 
     after(async () => {
       try {
+        // 自由创作是满血 AI 网页访客接口的选项，公开 /api/v1/tests 不接受 random_scene。
+        // 先取得本次访客会话，轮询时仅在服务端持有对应 cookie。
+        let visitorCookie = "";
+        if (service.source === "manxue-visitor") {
+          const config = await fetch(manxueVisitorConfigUrl, {
+            cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(15_000),
+          });
+          visitorCookie = /^gallery_visitor=([A-Za-z0-9_-]{8,128})(?:;|$)/.exec(config.headers.get("set-cookie") ?? "")?.[1] ?? "";
+          if (!config.ok || !visitorCookie) throw new Error("自由创作会话建立失败，请稍后重试");
+        }
         const response = await fetch(service.url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
             ...service.headers,
+            ...(visitorCookie ? { Cookie: `gallery_visitor=${visitorCookie}` } : {}),
           },
           body: JSON.stringify({
             benchmark,
@@ -98,6 +109,7 @@ export async function POST(request: Request) {
             model,
             reasoning_effort: effort,
             ...(benchmark === "pelican" ? { protocol: "responses" } : {}),
+            ...(visitorCookie ? { public: false, random_scene: true } : {}),
           }),
           cache: "no-store",
           redirect: "manual",
@@ -118,7 +130,7 @@ export async function POST(request: Request) {
           return;
         }
 
-        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, upstreamTaskId));
+        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, upstreamTaskId, visitorCookie));
         await removeExpiredTasks().catch(() => undefined);
       } catch (error) {
         const timeout = error instanceof Error && error.name === "TimeoutError";

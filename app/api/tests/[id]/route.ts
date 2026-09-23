@@ -39,11 +39,15 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }
     const upstreamTaskId = upstream.id || id;
+    if (service.source === "manxue-visitor" && !upstream.visitorCookie) {
+      return Response.json({ error: "自由创作会话已失效，请重新检测" }, { status: 502 });
+    }
 
     const response = await fetch(`${service.url}/${encodeURIComponent(upstreamTaskId)}`, {
       headers: {
         Accept: "application/json",
         ...service.headers,
+        ...(upstream.visitorCookie ? { Cookie: `gallery_visitor=${upstream.visitorCookie}` } : {}),
       },
       cache: "no-store",
       redirect: "manual",
@@ -52,7 +56,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const payload = await response.json().catch(() => ({ error: "检测服务返回了无效响应" }));
     const localized = localizeErrorPayload(payload, "暂时无法查询检测结果", response.status, "poll");
     const baseReport = localized && typeof localized === "object"
-      ? { ...(localized as Record<string, unknown>), id, evaluation_source: service.source }
+      ? { ...(localized as Record<string, unknown>), id, evaluation_source: service.source === "manxue-visitor" ? "manxue" : service.source }
       : localized;
     const report = response.ok && baseReport && typeof baseReport === "object"
       ? await attachLocalScreenshot(baseReport as Record<string, unknown>, id)

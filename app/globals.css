@@ -556,6 +556,12 @@ footer p { margin: 0; }
   .spin, .result-state-running i { animation: none !important; }
 }
 .custom-prompt-input { width: 100%; resize: vertical; min-height: 140px; padding: 14px 16px; border: 1px solid #cbd8d4; border-radius: 12px; background: #fff; color: #203530; font: inherit; font-size: 16px; line-height: 1.6; }
+.free-creation-option { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 12px; border: 1px solid #d6e2df; border-radius: 12px; background: #f8fbfa; cursor: pointer; }
+.free-creation-option:focus-within { outline: 2px solid #297464; outline-offset: 2px; }
+.free-creation-option input { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; accent-color: #297464; }
+.free-creation-option span { display: grid; gap: 2px; min-width: 0; }
+.free-creation-option strong { color: #203530; font-size: 15px; }
+.free-creation-option small { color: #566b66; font-size: 13px; line-height: 1.5; }
 .custom-prompt-input:focus-visible { outline: 2px solid #297464; outline-offset: 2px; }
 .custom-output { min-width: 0; }
 .custom-output-frame { display: block; width: 100%; height: min(72vh, 720px); min-height: 360px; border: 1px solid #dae5e2; border-radius: 16px; background: #fff; }

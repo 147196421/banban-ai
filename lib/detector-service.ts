@@ -1,8 +1,10 @@
 // 检测任务由网站服务器转发，浏览器不会直接接触检测服务或附带的 API Key。
 const manxueTestsUrl = "https://manxue.ai/api/v1/tests";
+const manxueVisitorTestsUrl = "https://manxue.ai/api/visitor/tests";
+export const manxueVisitorConfigUrl = "https://manxue.ai/api/visitor/config";
 const ownTestsUrl = "https://detector.banban.plus/v1/tests";
 
-export type DetectorSource = "manxue" | "reference" | "self-hosted";
+export type DetectorSource = "manxue" | "manxue-visitor" | "reference" | "self-hosted";
 
 export function getDetectorService(source?: DetectorSource) {
   const previousUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
@@ -14,6 +16,9 @@ export function getDetectorService(source?: DetectorSource) {
 
   if (selected === "manxue") {
     return { url: manxueTestsUrl, headers: {} as Record<string, string>, source: selected };
+  }
+  if (selected === "manxue-visitor") {
+    return { url: manxueVisitorTestsUrl, headers: {} as Record<string, string>, source: selected };
   }
   if (selected === "reference") {
     if (!previousUrl?.startsWith("https://")) return null;
@@ -29,15 +34,18 @@ export function getDetectorService(source?: DetectorSource) {
 }
 
 // 在任务索引中保留创建时使用的服务，切换配置后仍能查询旧任务和截图。
-export function storedDetectorTask(source: DetectorSource, id: string) {
-  return `${source}:${id}`;
+export function storedDetectorTask(source: DetectorSource, id: string, visitorCookie?: string) {
+  return `${source}:${id}${visitorCookie ? `:${visitorCookie}` : ""}`;
 }
 
 export function readStoredDetectorTask(storedId: string | null | undefined) {
+  const visitor = /^manxue-visitor:([A-Za-z0-9_-]+):([A-Za-z0-9_-]+)$/.exec(storedId ?? "");
+  if (visitor) return { source: "manxue-visitor" as const, id: visitor[1], visitorCookie: visitor[2] };
   const match = /^(manxue|reference|self-hosted):(.+)$/.exec(storedId ?? "");
-  if (match) return { source: match[1] as DetectorSource, id: match[2] };
+  if (match) return { source: match[1] as DetectorSource, id: match[2], visitorCookie: "" };
   return {
     source: process.env.BANBAN_SELF_HOSTED === "1" ? "self-hosted" as const : "reference" as const,
     id: storedId ?? "",
+    visitorCookie: "",
   };
 }

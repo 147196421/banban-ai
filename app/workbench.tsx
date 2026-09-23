@@ -184,6 +184,7 @@ export function BanbanWorkbench() {
   const [manualModel, setManualModel] = useState(false);
   const [effort, setEffort] = useState("high");
   const [customPrompt, setCustomPrompt] = useState("");
+  const [freeCreation, setFreeCreation] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
   const [modelMessage, setModelMessage] = useState("");
   const [runs, setRuns] = useState<TestRuns>(emptyRuns);
@@ -554,7 +555,7 @@ export function BanbanWorkbench() {
       const response = await fetch(kind === "custom" ? "/v1/generations" : "/v1/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort, ...(kind === "custom" ? { prompt: customPrompt.trim() } : {}) }),
+        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort, ...(kind === "custom" ? { prompt: customPrompt.trim() } : {}), ...(kind === "frontend" ? { freeCreation } : {}) }),
         keepalive: true,
       });
       const created = (await response.json()) as JsonRecord;
@@ -707,6 +708,14 @@ export function BanbanWorkbench() {
                 {benchmark === "reasoning" && <NativeSelectOption value="ultra">极限</NativeSelectOption>}
               </NativeSelect>
             </div>
+            {benchmark === "frontend" && (
+              <div className="field field-wide">
+                <label className="free-creation-option" htmlFor="free-creation">
+                  <input id="free-creation" type="checkbox" checked={freeCreation} onChange={(event) => setFreeCreation(event.target.checked)} />
+                  <span><strong>自由创作</strong><small>随机组合创作素材，生成作品后仍会判定通过或疑似降智。</small></span>
+                </label>
+              </div>
+            )}
             {benchmark === "custom" && (
               <div className="field field-wide">
                 <Label htmlFor="custom-prompt">生成提示词</Label>

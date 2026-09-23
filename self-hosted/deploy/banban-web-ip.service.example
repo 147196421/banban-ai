@@ -1,0 +1,22 @@
+[Unit]
+Description=Banban AI Website (IP access)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=banban
+Group=banban
+WorkingDirectory=/opt/banban-ai
+EnvironmentFile=/etc/banban-web.env
+ExecStart=/usr/bin/node /opt/banban-ai/node_modules/next/dist/bin/next start -p 3080 -H 0.0.0.0
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/banban-web
+
+[Install]
+WantedBy=multi-user.target

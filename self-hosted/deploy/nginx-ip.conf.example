@@ -1,0 +1,16 @@
+# 可选：让服务器的 HTTP IP 地址直接显示办办AI。
+# 只在没有其他 server 块占用该 IP 精确名称时加入，不替换任何已有 server 块。
+server {
+    listen 80;
+    server_name SERVER_IP_ADDRESS; # 部署时替换为实际公网 IP
+
+    location / {
+        proxy_pass http://127.0.0.1:3080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 75s;
+    }
+}

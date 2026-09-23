@@ -11,6 +11,7 @@
     "build": "node scripts/run-framework.mjs build",
     "build:vps": "next build --webpack",
     "start:vps": "next start -p 3000 -H 127.0.0.1",
+    "start:ip": "next start -p 3080 -H 0.0.0.0",
     "dev:vps": "next dev --webpack -p 3000 -H 127.0.0.1",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",

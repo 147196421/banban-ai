@@ -1,5 +1,7 @@
 # 在自有 VPS 运行完整办办AI网站
 
+如果目前只需要通过服务器 IP 使用，先阅读 [独立 IP 部署](IP-DEPLOY.md)：不要求修改域名 Nginx、证书或重新安装现有检测服务。本页仅供日后将 `ai.banban.plus` 正式指向网站时使用。
+
 `ai.banban.plus` 的 DNS 保持指向 VPS。Nginx 把首页、静态资源和 `/v1/*` 交给本机 Next.js 网站（127.0.0.1:3000）。网站把检测任务交给本机检测进程（127.0.0.1:8787）。检测进程调用用户输入的模型接口 `/models` 与 `/responses`，不依赖参考网站或外部网页托管。用户 API Key 不存进 SQLite，已完成结果和截图保存 7 天。
 
 先检查服务器现有仓库路径与 systemd 单元。下面 `/opt/banban-ai` 只是示例；若现有项目在 `/wwwroot/ai`，将服务文件中的 `WorkingDirectory`、`ExecStart` 和缓存目录都改成实际路径，再拉取更新。不要覆盖同机其他网站。

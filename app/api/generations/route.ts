@@ -4,29 +4,10 @@ import { checkRateLimit } from "@/db/rate-limit";
 import { createStoredTask, finishStoredTask, markStoredTaskFailed } from "@/db/test-tasks";
 import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
 import { toChineseError } from "@/lib/user-facing-error";
+import { outputText, readModelStream } from "@/lib/model-stream";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
-
-function outputText(payload: Record<string, unknown>, protocol: "responses" | "chat_completions") {
-  if (protocol === "chat_completions") {
-    const choices = Array.isArray(payload.choices) ? payload.choices : [];
-    const message = (choices[0] as { message?: { content?: unknown } } | undefined)?.message;
-    if (typeof message?.content === "string") return message.content;
-    if (Array.isArray(message?.content)) {
-      return message.content.map((part: { text?: unknown }) => typeof part?.text === "string" ? part.text : "").join("");
-    }
-    return "";
-  }
-  if (typeof payload.output_text === "string") return payload.output_text;
-  const output = Array.isArray(payload.output) ? payload.output : [];
-  return output.flatMap((item) => {
-    const message = item as { content?: { type?: string; text?: string }[] };
-    return Array.isArray(message.content)
-      ? message.content.filter((part) => part.type === "output_text").map((part) => part.text ?? "")
-      : [];
-  }).join("\n");
-}
 
 function extractRenderableDocument(output: string) {
   const content = output.trim().replace(/^```(?:html|svg|xml)?\s*/i, "").replace(/\s*```$/, "");
@@ -81,29 +62,39 @@ export async function POST(request: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
           body: JSON.stringify(protocol === "responses"
-            ? { model, input: prompt, reasoning: { effort }, max_output_tokens: 16000, store: false }
-            : { model, messages: [{ role: "user", content: prompt }], stream: false, reasoning_effort: effort, max_completion_tokens: 16000 }),
+            ? { model, input: prompt, reasoning: { effort }, max_output_tokens: 20000, store: false, stream: true }
+            : { model, messages: [{ role: "user", content: prompt }], stream: true, reasoning_effort: effort, max_completion_tokens: 20000 }),
           cache: "no-store",
           redirect: "manual",
-          signal: AbortSignal.timeout(7 * 60 * 1000),
+          signal: AbortSignal.timeout(9 * 60 * 1000),
         });
-        const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
         if (!response.ok) {
+          const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
           const error = response.status >= 500
             ? "服务器暂时无法完成生成，请稍后重试"
             : toChineseError(payload.error, "模型接口调用失败", response.status, "test");
           await markStoredTaskFailed(id, error);
           return;
         }
-        if (protocol === "responses" && payload.status === "incomplete") throw new Error("输出达到长度上限，请缩短提示词或重新生成");
-        if (protocol === "responses" && payload.status && payload.status !== "completed") throw new Error("模型未完成生成");
-        if (protocol === "chat_completions" && (payload.choices as { finish_reason?: string }[] | undefined)?.[0]?.finish_reason === "length") {
-          throw new Error("输出达到长度上限，请缩短提示词或重新生成");
+        let output = "";
+        let usage: { input_tokens?: number; output_tokens?: number; prompt_tokens?: number; completion_tokens?: number } | undefined;
+        if (response.headers.get("content-type")?.includes("text/event-stream")) {
+          const streamed = await readModelStream(response, protocol);
+          output = streamed.text.trim();
+          usage = streamed.usage;
+        } else {
+          // 兼容忽略 stream 参数、直接返回 JSON 的接口。
+          const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+          if (protocol === "responses" && payload.status === "incomplete") throw new Error("输出达到长度上限，请缩短提示词或重新生成");
+          if (protocol === "responses" && payload.status && payload.status !== "completed") throw new Error("模型未完成生成");
+          if (protocol === "chat_completions" && (payload.choices as { finish_reason?: string }[] | undefined)?.[0]?.finish_reason === "length") {
+            throw new Error("输出达到长度上限，请缩短提示词或重新生成");
+          }
+          output = outputText(payload, protocol).trim();
+          usage = payload.usage as typeof usage;
         }
-        const output = outputText(payload, protocol).trim();
         if (!output) throw new Error("模型没有返回内容");
         const { html, format } = extractRenderableDocument(output);
-        const usage = payload.usage as { input_tokens?: number; output_tokens?: number; prompt_tokens?: number; completion_tokens?: number } | undefined;
         await finishStoredTask(id, "succeeded", {
           id, status: "succeeded", benchmark: "custom", evaluation_source: "direct-model",
           result: {

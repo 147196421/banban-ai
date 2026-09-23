@@ -592,7 +592,7 @@ export function BanbanWorkbench() {
   const activeStep = runState === "idle" ? -1 : runState === "submitting" || task?.phase === "creating" ? 0 : task?.phase === "classifying" ? 2 : runState === "success" ? 3 : 1;
   const hasFinishedRun = ["success", "error"].includes(runState);
   const latestRunState = runs[benchmark].runState;
-  const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : benchmark === "custom" && !customPrompt.trim() ? "输入提示词" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : "约 1–5 分钟";
+  const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : benchmark === "custom" && !customPrompt.trim() ? "输入提示词" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : benchmark === "custom" ? "生成时间取决于作品长度" : "约 1–5 分钟";
   return (
     <main id="main-content" className="min-h-screen bg-background text-foreground">
       <a className="skip-link" href="#workbench">跳到检测表单</a>

@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     const model = typeof body.model === "string" ? body.model.trim() : "";
     const benchmark = body.benchmark === "frontend" ? "pelican" : "candy";
     const freeCreation = benchmark === "pelican" && body.freeCreation === true;
+    const protocol = body.protocol === "chat_completions" ? "chat_completions" : "responses";
     const service = getDetectorService(freeCreation ? "manxue-visitor" : undefined);
     if (!service) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
             api_key: apiKey,
             model,
             reasoning_effort: effort,
-            ...(benchmark === "pelican" ? { protocol: "responses" } : {}),
+            ...(benchmark === "pelican" ? { protocol } : {}),
             ...(visitorCookie ? { public: false, random_scene: true } : {}),
           }),
           cache: "no-store",

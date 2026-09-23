@@ -183,6 +183,7 @@ export function BanbanWorkbench() {
   const [selectedModel, setSelectedModel] = useState("");
   const [manualModel, setManualModel] = useState(false);
   const [effort, setEffort] = useState("high");
+  const [requestProtocol, setRequestProtocol] = useState<"responses" | "chat_completions">("chat_completions");
   const [customPrompt, setCustomPrompt] = useState("");
   const [freeCreation, setFreeCreation] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
@@ -555,7 +556,7 @@ export function BanbanWorkbench() {
       const response = await fetch(kind === "custom" ? "/v1/generations" : "/v1/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort, ...(kind === "custom" ? { prompt: customPrompt.trim() } : {}), ...(kind === "frontend" ? { freeCreation } : {}) }),
+        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation, protocol: requestProtocol } : {}) }),
         keepalive: true,
       });
       const created = (await response.json()) as JsonRecord;
@@ -708,10 +709,23 @@ export function BanbanWorkbench() {
                 {benchmark === "reasoning" && <NativeSelectOption value="ultra">极限</NativeSelectOption>}
               </NativeSelect>
             </div>
+            {benchmark !== "reasoning" && (
+              <div className="field field-wide">
+                <Label htmlFor="request-protocol">请求协议</Label>
+                <NativeSelect id="request-protocol" className="model-select" value={requestProtocol} onChange={(event) => setRequestProtocol(event.target.value as "responses" | "chat_completions")}>
+                  <NativeSelectOption value="chat_completions">Chat Completions</NativeSelectOption>
+                  <NativeSelectOption value="responses">Responses</NativeSelectOption>
+                </NativeSelect>
+                <p className="field-message">如果检测流未完成或模型接口报错，可切换协议后重试。</p>
+              </div>
+            )}
             {benchmark === "frontend" && (
               <div className="field field-wide">
                 <label className="free-creation-option" htmlFor="free-creation">
-                  <input id="free-creation" type="checkbox" checked={freeCreation} onChange={(event) => setFreeCreation(event.target.checked)} />
+                  <input id="free-creation" type="checkbox" checked={freeCreation} onChange={(event) => {
+                    setFreeCreation(event.target.checked);
+                    setRequestProtocol(event.target.checked ? "responses" : "chat_completions");
+                  }} />
                   <span><strong>自由创作</strong><small>随机组合创作素材，生成作品后仍会判定通过或疑似降智。</small></span>
                 </label>
               </div>
@@ -726,7 +740,7 @@ export function BanbanWorkbench() {
                   onChange={(event) => setCustomPrompt(event.target.value)}
                   maxLength={12000}
                   rows={6}
-                  placeholder="描述你想生成的内容。需要网页作品时，请写明生成完整的单文件 HTML。"
+                  placeholder="描述你想生成的内容。需要可预览的作品时，可要求输出完整的单文件 HTML 或 SVG。"
                 />
               </div>
             )}

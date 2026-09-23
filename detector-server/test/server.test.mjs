@@ -18,6 +18,7 @@ const app = await createDetectorServer({
   dataDir: temp,
   verifyTarget: async () => {},
   screenshot: async (_html, id, directory) => {
+    if (_html.includes('snapshot-failure')) throw new Error('Chromium unavailable');
     const { mkdir } = await import('node:fs/promises');
     await mkdir(join(directory, 'screenshots'), { recursive: true });
     const path = join(directory, 'screenshots', `${id}.png`);
@@ -29,7 +30,8 @@ const app = await createDetectorServer({
     calls.push(body);
     if (body.model === 'gpt-5.5') return new Response(JSON.stringify({ error: { message: 'upstream unavailable' } }), { status: 503 });
     if (body.input.includes('红、蓝、绿')) await gate;
-    return new Response(JSON.stringify({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: body.input.includes('红、蓝、绿') ? '21' : pelicanHtml }] }], usage: { input_tokens: 10, output_tokens: 20 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    const answer = body.input.includes('红、蓝、绿') ? '21' : body.model === 'gpt-5.4-snapshot-failure' ? pelicanHtml.replace('</body>', '<!-- snapshot-failure --></body>') : pelicanHtml;
+    return new Response(JSON.stringify({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: answer }] }], usage: { input_tokens: 10, output_tokens: 20 } }), { status: 200, headers: { 'content-type': 'application/json' } });
   },
 });
 app.server.listen(0, '127.0.0.1');
@@ -99,9 +101,25 @@ test('拒绝内网地址，判定函数不会把包含 121 的回答判为 21', 
   await assert.rejects(normalizeBaseUrl('https://127.0.0.1/v1', async () => {}));
   assert.equal(judgeCandy('121'), 'incorrect');
   assert.equal(judgeCandy('答案：21'), 'passed');
+  assert.equal(judgeCandy('22，标准答案是 21'), 'incorrect');
+  assert.equal(judgeCandy('21，但我认为是 22'), 'incorrect');
   assert.equal(extractHtml(`\`\`\`html\n${pelicanHtml}\n\`\`\``), pelicanHtml);
   assert.equal(assessPelican('').quality, 'degraded');
   assert.equal(extractOutputText({ output: [{ type: 'reasoning' }, { type: 'message', content: [{ type: 'output_text', text: '21' }] }] }), '21');
+});
+
+test('截图服务异常时报告明确提示，仍保存鹈鹕 HTML', async () => {
+  const response = await api('/v1/tests', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ benchmark: 'pelican', base_url: 'https://api.example.com/v1', api_key: 'sk-test-only', model: 'gpt-5.4-snapshot-failure', reasoning_effort: 'high' }),
+  });
+  const { id } = await response.json();
+  const report = await finished(id);
+  assert.equal(report.status, 'succeeded');
+  assert.match(report.result.screenshot_error, /浏览器截图生成失败/);
+  assert.equal(report.result.screenshot_url, undefined);
+  assert.match(report.result.html, /snapshot-failure/);
 });
 
 test('上游模型 5xx 被记录为中文失败结果，不暴露原始英文报错', async () => {

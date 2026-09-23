@@ -108,7 +108,8 @@ export async function createDetectorServer({
             await screenshot(html, id, dataDir);
             report.result.screenshot_url = `/v1/tests/${id}/screenshot`;
           } catch {
-            // Chromium 未安装时仍保存 HTML，网站可用隔离 iframe 预览。
+            // 保留 HTML 预览，同时让网站明确提示截图未生成。
+            report.result.screenshot_error = '浏览器截图生成失败，请检查服务器上的 Chromium';
           }
         }
       }

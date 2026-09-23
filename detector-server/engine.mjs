@@ -59,7 +59,8 @@ export async function callModel(task, fetchProvider = fetch) {
 
 export function judgeCandy(output) {
   const answer = output.trim();
-  return /(?:^|[^\d])21(?:[^\d]|$)/u.test(answer) && !/\b(?:not|不是|不等于)\s*21\b/iu.test(answer)
+  // 只接受明确的最终答案；解释中提到“标准答案 21”不代表本次作答正确。
+  return /^(?:(?:答案\s*[:：]?|答\s*[:：])\s*)?21(?:\s*颗(?:糖)?)?[。.!！]?$/u.test(answer)
     ? 'passed' : 'incorrect';
 }
 

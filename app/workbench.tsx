@@ -732,6 +732,9 @@ export function BanbanWorkbench() {
                   <img src={`/api/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`} alt="鹈鹕骑行作品的实际浏览器截图" loading="lazy" />
                 </div>
               )}
+              {typeof asRecord(task?.result).screenshot_error === "string" && (
+                <p className="field-message field-error" role="status">浏览器截图暂时不可用，仍可查看下方动画预览。</p>
+              )}
               <div className="preview-chrome">
                 <span className="preview-lights" aria-hidden="true"><i /><i /><i /></span>
                 <span className="preview-address">模型生成作品</span>

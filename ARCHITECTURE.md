@@ -2,21 +2,21 @@
 
 ## 当前实现
 
-- 前端：React 19 + TypeScript + Vinext/Vite
+- 前端：React 19 + TypeScript；VPS 使用 Next.js，旧托管版本使用 Vinext/Vite
 - UI：Tailwind CSS + 项目内置无障碍组件
-- 部署：Cloudflare Worker 兼容构建
+- 部署：VPS 上运行 Next.js + 本机 SQLite + 独立 Node 检测服务；旧托管版仍可使用 Worker 兼容构建
 - 当前页面：GPT 专用检测工作台，包含接口、密钥、模型发现、模型选择、推理等级与异步结果查询
 - 模型发现：服务端调用上游 `/models`，过滤非 GPT 以及音频、图像等非文本模型
-- 检测判定：配置共享密钥后，网站固定调用自有服务 `https://detector.banban.plus/v1/tests`；自有实现见 `detector-server/`，糖果题读取 `candy.status`，动画题读取 `assessment.quality`
+- 检测判定：VPS 网站通过 `127.0.0.1:8787` 调用自有服务；实现见 `detector-server/`，糖果题读取 `candy.status`，动画题读取 `assessment.quality`
 - 后台任务：客户端先生成幂等任务编号，服务端持久化后立即响应，并在响应结束后创建真实检测任务；浏览器进入后台不会中断模型调用
-- 结果恢复：任务编号与终态报告在 D1 中保留 7 天，客户端同时保存不含密钥的任务编号，重新打开页面会自动续查
+- 结果恢复：VPS 使用本机 SQLite 保存任务索引，检测服务保存结果和截图 7 天；旧托管版使用 D1；客户端保存不含密钥的任务编号
 - 安全状态：API Key 不写入浏览器缓存或数据库，仅在单次后台任务创建期间驻留内存
 
 ## 自有检测服务
 
-`detector-server/` 可部署到自己的 Linux 服务器。Node.js 后台任务持有用户 API Key 直到模型调用完成，任务结果和 Chromium 截图保存 7 天；浏览器切到后台不影响服务端执行。服务器重启会中断未完成的任务，详情见 [部署说明](detector-server/README.md)。网站使用 `BANBAN_TEST_SERVICE_TOKEN` 与自有域名通信；未配置密钥时为保证切换期间可用，暂时使用现有的旧检测服务地址。完成切换后删除旧配置 `BANBAN_TEST_SERVICE_URL`。
+`detector-server/` 与网站均可部署在自己的 Linux 服务器。Node.js 后台任务持有用户 API Key 直到模型调用完成，任务结果和 Chromium 截图保存 7 天；浏览器切到后台不影响服务端执行。服务器重启会中断未完成的任务，详情见 [VPS 部署说明](self-hosted/README.md)。网站与检测服务之间使用同一个私有 `SERVICE_TOKEN`，走本机回环地址。
 
-除用户填写的模型接口 `/models` 和 `/responses` 外，办办AI不调用参考网站的 API。网站在 `ai.banban.plus` 提供自己的 `/v1/models`、`/v1/tests` 与截图代理，保留 `/api/*` 兼容路由；任务索引存在站点数据库，检测与截图由 `detector.banban.plus` 上的自建服务器执行。前端域名直接绑定 Sites，避免 VPS 反代现有前端时 Cloudflare 返回 403。当前网页和数据库仍由 Sites 托管，并非整站迁移到自己的 VPS。
+除用户填写的模型接口 `/models` 和 `/responses` 外，办办AI不调用参考网站的 API。VPS 在 `ai.banban.plus` 提供首页、自己的 `/v1/models`、`/v1/tests` 与截图代理；任务索引存在本机 SQLite，检测与截图由同机 8787 端口的检测服务执行。Nginx 直接代理本机网站，不代理旧托管网页。
 
 糖果题和鹈鹕结构判定为办办AI自编规则，不能视为对其他网站专有判定逻辑的逐字复刻，也不能证明真实模型身份。
 

@@ -8,7 +8,7 @@
 
 - Linux、Node.js 24 或更新、可连接目标 GPT API。
 - Chromium：先安装系统依赖，再**以运行服务的同一用户**下载浏览器。若服务器已有可运行的 Chrome/Chromium，可设置 `CHROME_PATH=/usr/bin/chromium`。
-- 自有后端 HTTPS 域名 `detector.banban.plus`：Nginx 将 `/v1/` 和 `/health` 转给本机服务。`ai.banban.plus` 直接绑定前端托管方，并由网站 `/v1/*` 接口代理检测任务。公网**不要直接开放 8787**。
+- 自建网站与检测服务部署在同一台 VPS 时，`ai.banban.plus` 的 Nginx 将网站请求转给 3000，网站内部连接 8787。公网**不要直接开放 8787**。完整步骤见 [VPS 部署说明](../self-hosted/README.md)。
 - 独立生成一个不少于 32 位的 `SERVICE_TOKEN`；网站和服务必须使用同一值，且不得提交到 GitHub。
 
 ## 安装与启动
@@ -36,17 +36,18 @@ sudo -u banban -H env SERVICE_TOKEN="$(openssl rand -hex 32)" DATA_DIR=/var/lib/
 | `HOST` | 默认 `127.0.0.1`，只接受本机反代 |
 | `CHROME_PATH` | 可选，系统 Chromium 的可执行路径 |
 
-先确认 `curl http://127.0.0.1:8787/health` 返回 `{"status":"ok"}`，再验证 `https://detector.banban.plus/health`。访问 `https://ai.banban.plus/` 应显示办办AI网站，并保持地址栏域名不变。检测服务提供 `POST /v1/tests`、`GET /v1/tests/:id` 与 `GET /v1/tests/:id/screenshot`，均需要请求头 `X-Banban-Service-Token`；网站的同名 `/v1/*` 路由会代用户发起任务，不把共享密钥交给浏览器。
+先确认 `curl http://127.0.0.1:8787/health` 返回 `{"status":"ok"}`。访问 `https://ai.banban.plus/` 应显示办办AI网站，并保持地址栏域名不变。检测服务提供 `POST /v1/tests`、`GET /v1/tests/:id` 与 `GET /v1/tests/:id/screenshot`，均需要请求头 `X-Banban-Service-Token`；网站的同名 `/v1/*` 路由会代用户发起任务，不把共享密钥交给浏览器。
 
 ## 接入办办AI 网站
 
-在网站的 Sites 运行环境中设置：
+在网站进程的 `/etc/banban-web.env` 中设置：
 
 ```text
 BANBAN_TEST_SERVICE_TOKEN=与服务器 SERVICE_TOKEN 相同的密钥
+BANBAN_SELF_HOSTED=1
 ```
 
-网站已将自有服务地址固定为 `https://detector.banban.plus/v1/tests`。配置密钥后，网站将自动使用自有服务，之后可删除旧的 `BANBAN_TEST_SERVICE_URL`；切换前先检查 `/health`、证书和两项测试，并确认旧任务已完成。`ai.banban.plus` 的 DNS 应按网站托管方提供的 CNAME/TXT 记录设置，不能继续指向这台 VPS；后端则使用 `detector.banban.plus` 指向 VPS。网站的 `/v1/models` 仍只读取用户所填模型接口；历史记录仍保留在用户浏览器中。不要在公开页面、仓库或截图里显示共享密钥。
+自建模式固定使用本机 `http://127.0.0.1:8787/v1/tests`，无须单独的检测域名。`ai.banban.plus` 的 DNS 继续指向 VPS。网站 `/v1/models` 仍只读取用户填写的模型接口；历史记录保留在用户浏览器中。不要在公开页面、仓库或截图里显示共享密钥。
 
 ## 运行限制
 

@@ -44,4 +44,5 @@ next-env.d.ts
 /.codex/
 /outputs/
 /work/
+/data/
 /site-build.tar.gz

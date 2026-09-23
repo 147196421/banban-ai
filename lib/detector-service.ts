@@ -5,11 +5,15 @@ export function getDetectorService() {
   const token = process.env.BANBAN_TEST_SERVICE_TOKEN?.trim();
   if (token) {
     if (token.length < 32) return null;
-    return { url: ownTestsUrl, headers: { "X-Banban-Service-Token": token } };
+    const localUrl = process.env.BANBAN_SELF_HOSTED === "1"
+      ? "http://127.0.0.1:8787/v1/tests"
+      : ownTestsUrl;
+    return { url: localUrl, headers: { "X-Banban-Service-Token": token } };
   }
 
+  if (process.env.BANBAN_SELF_HOSTED === "1") return null;
   // 旧版上线期间保持现有任务可查询；配置自建服务密钥后即自动切换。
   const previousUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
   if (!previousUrl?.startsWith("https://")) return null;
-  return { url: previousUrl, headers: {} };
+  return { url: previousUrl, headers: {} as Record<string, string> };
 }

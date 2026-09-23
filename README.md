@@ -1,4 +1,6 @@
-# vinext-starter
+# 办办AI
+
+在自己的 VPS 上运行完整网站，请按 [自建部署说明](self-hosted/README.md)操作。`ai.banban.plus` 的首页、模型读取、糖果测试、鹈鹕骑行及结果截图均由本项目和同机检测服务提供。下文为旧托管构建的原始说明。
 
 A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
 

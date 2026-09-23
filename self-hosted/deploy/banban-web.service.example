@@ -1,0 +1,20 @@
+[Unit]
+Description=Banban AI Website
+After=network-online.target banban-detector.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=banban
+Group=banban
+WorkingDirectory=/opt/banban-ai
+EnvironmentFile=/etc/banban-web.env
+ExecStart=/usr/bin/node /opt/banban-ai/node_modules/next/dist/bin/next start -p 3000 -H 127.0.0.1
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/banban-web
+
+[Install]
+WantedBy=multi-user.target

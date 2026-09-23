@@ -77,8 +77,8 @@ export function assessPelican(html) {
   const dynamic = /@keyframes|requestAnimationFrame|setInterval\s*\(/i.test(html);
   const wheels = (html.match(/<circle\b/gi) ?? []).length >= 2 || /wheel|车轮|轮子/i.test(html);
   const bird = /pelican|鹈鹕|\b(beak|pouch)\b|喙|喉囊/i.test(html);
-  if (dynamic && wheels && bird) return { quality: 'normal', reason: '包含动画、车轮和鹈鹕结构；可查看下方浏览器画面' };
-  return { quality: 'suspicious', reason: '作品已生成，部分动画或造型结构未能确认；请查看画面' };
+  if (dynamic && wheels && bird) return { quality: 'normal', reason: '检测到动画、车轮和鹈鹕元素；此项仅检查结构' };
+  return { quality: 'suspicious', reason: '部分动画或造型结构未能确认，请查看作品' };
 }
 
 export async function renderScreenshot(html, id, dataDir) {

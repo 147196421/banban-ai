@@ -50,14 +50,17 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     });
     const payload = await response.json().catch(() => ({ error: "检测服务返回了无效响应" }));
     const localized = localizeErrorPayload(payload, "暂时无法查询检测结果", response.status, "poll");
-    if (stored && response.ok && localized && typeof localized === "object") {
-      const status = String((localized as { status?: unknown }).status ?? "");
+    const report = localized && typeof localized === "object"
+      ? { ...(localized as Record<string, unknown>), id, evaluation_source: service.source }
+      : localized;
+    if (stored && response.ok && report && typeof report === "object") {
+      const status = String((report as { status?: unknown }).status ?? "");
       if (["succeeded", "failed", "cancelled"].includes(status)) {
-        await finishStoredTask(id, status as "succeeded" | "failed" | "cancelled", localized);
+        await finishStoredTask(id, status as "succeeded" | "failed" | "cancelled", report);
       }
     }
     return Response.json(
-      localized && typeof localized === "object" ? { ...(localized as Record<string, unknown>), id } : localized,
+      report,
       { status: response.status },
     );
   } catch (error) {

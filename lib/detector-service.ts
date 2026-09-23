@@ -2,18 +2,24 @@
 const ownTestsUrl = "https://detector.banban.plus/v1/tests";
 
 export function getDetectorService() {
+  const previousUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
+  // 需要与旧站完全相同的判定时，显式使用旧站配置的检测服务。
+  if (process.env.BANBAN_EVALUATION_MODE === "reference") {
+    if (!previousUrl?.startsWith("https://")) return null;
+    return { url: previousUrl, headers: {} as Record<string, string>, source: "reference" as const };
+  }
+
   const token = process.env.BANBAN_TEST_SERVICE_TOKEN?.trim();
   if (token) {
     if (token.length < 32) return null;
     const localUrl = process.env.BANBAN_SELF_HOSTED === "1"
       ? "http://127.0.0.1:8787/v1/tests"
       : ownTestsUrl;
-    return { url: localUrl, headers: { "X-Banban-Service-Token": token } };
+    return { url: localUrl, headers: { "X-Banban-Service-Token": token }, source: "self-hosted" as const };
   }
 
   if (process.env.BANBAN_SELF_HOSTED === "1") return null;
   // 旧版上线期间保持现有任务可查询；配置自建服务密钥后即自动切换。
-  const previousUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
   if (!previousUrl?.startsWith("https://")) return null;
-  return { url: previousUrl, headers: {} as Record<string, string> };
+  return { url: previousUrl, headers: {} as Record<string, string>, source: "reference" as const };
 }

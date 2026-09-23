@@ -117,6 +117,7 @@ function describeResult(run: TestRun, benchmark: Benchmark) {
   const generated = asRecord(task?.result);
   const candyStatus = candy.status;
   const quality = assessment.quality;
+  const referenceJudgment = task?.evaluation_source === "reference";
 
   let label = "等待检测";
   let tone = "idle";
@@ -146,16 +147,20 @@ function describeResult(run: TestRun, benchmark: Benchmark) {
     }
   } else if (benchmark === "frontend" && task) {
     if (quality === "normal") {
-      label = "表现正常";
+      label = referenceJudgment ? "表现正常" : "结构完整";
       tone = "pass";
+      summary = referenceJudgment
+        ? readableError(assessment.reason, "本次表现符合预期。")
+        : "检测到动画和主要元素，请结合截图查看。";
     } else if (quality === "degraded" || quality === "suspicious") {
-      label = "疑似降智";
+      label = referenceJudgment ? "疑似降智" : "需人工查看";
       tone = "degraded";
+      summary = readableError(assessment.reason, "部分结构未能确认，请查看作品。");
     } else {
       label = "无法判定";
       tone = "unknown";
+      summary = readableError(assessment.reason, "本次没有详细原因。");
     }
-    summary = readableError(assessment.reason, "本次没有详细原因。");
   }
 
   const duration = Number(candy.duration_ms ?? generated.duration_ms ?? task?.duration_ms ?? 0);
@@ -711,7 +716,7 @@ export function BanbanWorkbench() {
           </div>
 
           <div className="result-readout" aria-label={`检测结果：${result.label}`}>
-            <span>{benchmark === "reasoning" ? "逻辑题判定" : "作品质量判定"}</span>
+            <span>{benchmark === "reasoning" ? "逻辑题判定" : task?.evaluation_source === "reference" ? "作品质量判定" : "作品结构检查"}</span>
             <strong>{result.label}</strong>
             {result.summary && <p>{result.tone === "error" && <AlertTriangle aria-hidden="true" />}{result.summary}</p>}
           </div>
@@ -725,35 +730,38 @@ export function BanbanWorkbench() {
 
           {benchmark === "frontend" && runState === "success" && (
             <section className="pelican-preview" aria-label="鹈鹕作品浏览器预览">
-              {typeof asRecord(task?.result).screenshot_url === "string" && currentRun.taskId && (
+              {typeof asRecord(task?.result).screenshot_url === "string" && currentRun.taskId ? (
                 <div className="pelican-snapshot">
                   <span>浏览器截图</span>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={`/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`} alt="鹈鹕骑行作品的实际浏览器截图" loading="lazy" />
                 </div>
-              )}
-              {typeof asRecord(task?.result).screenshot_error === "string" && (
-                <p className="field-message field-error" role="status">浏览器截图暂时不可用，仍可查看下方动画预览。</p>
-              )}
-              <div className="preview-chrome">
-                <span className="preview-lights" aria-hidden="true"><i /><i /><i /></span>
-                <span className="preview-address">模型生成作品</span>
-                <span className="preview-live">安全预览</span>
-              </div>
-              {pelicanHtml ? (
-                <iframe
-                  className="pelican-frame"
-                  title="模型生成的鹈鹕骑自行车动画"
-                  srcDoc={pelicanHtml}
-                  sandbox="allow-scripts"
-                  referrerPolicy="no-referrer"
-                />
               ) : (
-                <div className="preview-missing">
-                  <Braces aria-hidden="true" />
-                  <strong>本次结果没有返回可预览的 HTML</strong>
-                  <span>仍可参考上方质量判定；重新检测可能获得完整作品。</span>
-                </div>
+                <>
+                  {typeof asRecord(task?.result).screenshot_error === "string" && (
+                    <p className="field-message field-error" role="status">浏览器截图暂时不可用，已显示动画预览。</p>
+                  )}
+                  <div className="preview-chrome">
+                    <span className="preview-lights" aria-hidden="true"><i /><i /><i /></span>
+                    <span className="preview-address">模型生成作品</span>
+                    <span className="preview-live">安全预览</span>
+                  </div>
+                  {pelicanHtml ? (
+                    <iframe
+                      className="pelican-frame"
+                      title="模型生成的鹈鹕骑自行车动画"
+                      srcDoc={pelicanHtml}
+                      sandbox="allow-scripts"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="preview-missing">
+                      <Braces aria-hidden="true" />
+                      <strong>本次结果没有返回可预览的 HTML</strong>
+                      <span>可重新检测，尝试生成完整作品。</span>
+                    </div>
+                  )}
+                </>
               )}
             </section>
           )}

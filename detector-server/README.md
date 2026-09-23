@@ -36,7 +36,7 @@ sudo -u banban -H env SERVICE_TOKEN="$(openssl rand -hex 32)" DATA_DIR=/var/lib/
 | `HOST` | 默认 `127.0.0.1`，只接受本机反代 |
 | `CHROME_PATH` | 可选，系统 Chromium 的可执行路径 |
 
-先确认 `curl http://127.0.0.1:8787/health` 返回 `{"status":"ok"}`。访问 `https://ai.banban.plus/` 应显示办办AI网站，并保持地址栏域名不变。检测服务提供 `POST /v1/tests`、`GET /v1/tests/:id` 与 `GET /v1/tests/:id/screenshot`，均需要请求头 `X-Banban-Service-Token`；网站的同名 `/v1/*` 路由会代用户发起任务，不把共享密钥交给浏览器。
+先确认 `curl http://127.0.0.1:8787/health` 返回 `{"status":"ok"}`。访问 `https://ai.banban.plus/` 应显示办办AI网站，并保持地址栏域名不变。检测服务提供原有的 `POST /v1/tests`、`GET /v1/tests/:id` 与 `GET /v1/tests/:id/screenshot`，还提供 `POST /v1/screenshots` 与 `GET /v1/screenshots/:id`：后两项仅渲染已经生成的 HTML，完全不调用模型、不执行本机质量判定。全部需要请求头 `X-Banban-Service-Token`，浏览器只访问网站自己的截图代理路由。
 
 ## 接入办办AI 网站
 
@@ -47,7 +47,7 @@ BANBAN_TEST_SERVICE_TOKEN=与服务器 SERVICE_TOKEN 相同的密钥
 BANBAN_SELF_HOSTED=1
 ```
 
-自建模式固定使用本机 `http://127.0.0.1:8787/v1/tests`，无须单独的检测域名。`ai.banban.plus` 的 DNS 继续指向 VPS。网站 `/v1/models` 仍只读取用户填写的模型接口；历史记录保留在用户浏览器中。不要在公开页面、仓库或截图里显示共享密钥。
+网站新任务默认由满血 AI 判定，任务完成后利用本机 `http://127.0.0.1:8787/v1/screenshots` 生成真实浏览器截图；`BANBAN_EVALUATION_MODE=self-hosted` 才恢复由本机服务执行检测和简单结构判定。`ai.banban.plus` 的 DNS 继续指向 VPS。网站 `/v1/models` 仍只读取用户填写的模型接口；历史记录保留在用户浏览器中。不要在公开页面、仓库或截图里显示共享密钥。
 
 ## 运行限制
 

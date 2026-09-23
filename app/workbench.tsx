@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PelicanPreview } from "@/components/pelican-preview";
 import { toChineseError } from "@/lib/user-facing-error";
 
 type Benchmark = "reasoning" | "frontend";
@@ -729,41 +730,14 @@ export function BanbanWorkbench() {
           )}
 
           {benchmark === "frontend" && runState === "success" && (
-            <section className="pelican-preview" aria-label="鹈鹕作品浏览器预览">
-              {typeof asRecord(task?.result).screenshot_url === "string" && currentRun.taskId ? (
-                <div className="pelican-snapshot">
-                  <span>浏览器截图</span>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`} alt="鹈鹕骑行作品的实际浏览器截图" loading="lazy" />
-                </div>
-              ) : (
-                <>
-                  {typeof asRecord(task?.result).screenshot_error === "string" && (
-                    <p className="field-message field-error" role="status">浏览器截图暂时不可用，已显示动画预览。</p>
-                  )}
-                  <div className="preview-chrome">
-                    <span className="preview-lights" aria-hidden="true"><i /><i /><i /></span>
-                    <span className="preview-address">模型生成作品</span>
-                    <span className="preview-live">安全预览</span>
-                  </div>
-                  {pelicanHtml ? (
-                    <iframe
-                      className="pelican-frame"
-                      title="模型生成的鹈鹕骑自行车动画"
-                      srcDoc={pelicanHtml}
-                      sandbox="allow-scripts"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="preview-missing">
-                      <Braces aria-hidden="true" />
-                      <strong>本次结果没有返回可预览的 HTML</strong>
-                      <span>可重新检测，尝试生成完整作品。</span>
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
+            <PelicanPreview
+              key={currentRun.taskId}
+              html={pelicanHtml}
+              screenshotUrl={typeof asRecord(task?.result).screenshot_url === "string" && currentRun.taskId
+                ? `/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`
+                : undefined}
+              screenshotError={typeof asRecord(task?.result).screenshot_error === "string"}
+            />
           )}
 
           <div className="metric-row">

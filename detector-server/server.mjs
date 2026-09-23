@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { isIP } from 'node:net';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -49,11 +49,11 @@ async function publicHost(hostname) {
   if (!addresses.length || addresses.some(({ address }) => privateIp(address))) throw new Error('接口地址不能指向内网');
 }
 
-async function readJson(req) {
+async function readJson(req, maxBytes = 12_000) {
   let raw = '';
   for await (const chunk of req) {
     raw += chunk;
-    if (raw.length > 12_000) throw new Error('请求内容过大');
+    if (Buffer.byteLength(raw) > maxBytes) throw new Error('请求内容过大');
   }
   try { return JSON.parse(raw); } catch { throw new Error('请求格式无效'); }
 }
@@ -80,6 +80,7 @@ export async function createDetectorServer({
   const update = db.prepare('UPDATE tasks SET status=?,payload_json=? WHERE id=?');
   const pending = [];
   let active = 0;
+  let screenshotActive = false;
 
   function save(id, payload) {
     update.run(payload.status, JSON.stringify(payload), id);
@@ -143,6 +144,13 @@ export async function createDetectorServer({
     const expired = db.prepare('SELECT id FROM tasks WHERE expires_at<?').all(Date.now());
     db.prepare('DELETE FROM tasks WHERE expires_at<?').run(Date.now());
     await Promise.all(expired.map(({ id }) => rm(join(dataDir, 'screenshots', `${id}.png`), { force: true }).catch(() => undefined)));
+    const folder = join(dataDir, 'screenshots');
+    const names = await readdir(folder).catch(() => []);
+    await Promise.all(names.filter((name) => /^external-[0-9a-f-]{36}\.png$/i.test(name)).map(async (name) => {
+      const path = join(folder, name);
+      const file = await stat(path).catch(() => null);
+      if (file && file.mtimeMs < Date.now() - oneWeek) await rm(path, { force: true });
+    }));
   }
   await cleanup();
   const cleanupTimer = setInterval(() => void cleanup(), 60 * 60 * 1000);
@@ -152,6 +160,44 @@ export async function createDetectorServer({
     const pathname = new URL(req.url || '/', 'http://localhost').pathname;
     if (req.method === 'GET' && pathname === '/health') return send(res, 200, { status: 'ok' });
     if (!authenticated(req, token)) return send(res, 401, { error: '未授权' });
+
+    // 已有 HTML 只生成浏览器截图，不调用模型，也不改变外部服务给出的判定。
+    if (req.method === 'POST' && pathname === '/v1/screenshots') {
+      try {
+        const body = await readJson(req, 550_000);
+        if (!body || !idPattern.test(body.id)) return send(res, 400, { error: '检测任务编号无效' });
+        if (typeof body.html !== 'string' || !/<html\b|<!doctype\s+html/i.test(body.html)) {
+          return send(res, 400, { error: '没有可供截图的 HTML 作品' });
+        }
+        if (Buffer.byteLength(body.html) > 500_000) return send(res, 413, { error: '作品内容过大，无法截图' });
+        const name = `external-${body.id}`;
+        const url = `/v1/screenshots/${body.id}`;
+        if (await readFile(join(dataDir, 'screenshots', `${name}.png`)).then(() => true, () => false)) {
+          return send(res, 200, { screenshot_url: url });
+        }
+        if (screenshotActive) return send(res, 503, { error: '截图服务繁忙，请稍后重试' });
+        screenshotActive = true;
+        try {
+          await screenshot(body.html, name, dataDir);
+          return send(res, 201, { screenshot_url: url });
+        } finally {
+          screenshotActive = false;
+        }
+      } catch (error) {
+        const message = error instanceof Error && error.message === '请求内容过大'
+          ? '作品内容过大，无法截图' : '浏览器截图生成失败';
+        return send(res, message.includes('过大') ? 413 : 502, { error: message });
+      }
+    }
+
+    const externalScreenshot = /^\/v1\/screenshots\/([0-9a-f-]{36})$/i.exec(pathname);
+    if (req.method === 'GET' && externalScreenshot && idPattern.test(externalScreenshot[1])) {
+      try {
+        const image = await readFile(join(dataDir, 'screenshots', `external-${externalScreenshot[1]}.png`));
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff' });
+        return res.end(image);
+      } catch { return send(res, 404, { error: '没有找到浏览器截图' }); }
+    }
 
     if (req.method === 'POST' && pathname === '/v1/tests') {
       try {

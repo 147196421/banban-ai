@@ -14,9 +14,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return new Response(null, { status: 404 });
     }
     const upstream = readStoredDetectorTask(stored.upstream_task_id);
-    const service = getDetectorService(upstream.source);
+    const localScreenshot = result.screenshot_source === "self-hosted";
+    const service = getDetectorService(localScreenshot ? "self-hosted" : upstream.source);
     if (!service) return new Response(null, { status: 503 });
-    const image = await fetch(`${service.url}/${encodeURIComponent(upstream.id)}/screenshot`, {
+    const imageUrl = localScreenshot
+      ? `${service.url.replace(/\/v1\/tests$/, "")}/v1/screenshots/${encodeURIComponent(id)}`
+      : `${service.url}/${encodeURIComponent(upstream.id)}/screenshot`;
+    const image = await fetch(imageUrl, {
       headers: {
         Accept: "image/png",
         ...service.headers,

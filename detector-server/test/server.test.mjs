@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -95,6 +95,29 @@ test('鹈鹕任务保存 HTML 和实际截图，截图接口需要授权', async
   assert.equal(report.result.screenshot_url, `/v1/tests/${id}/screenshot`);
   assert.equal((await api(`/v1/tests/${id}/screenshot`)).status, 200);
   assert.equal((await fetch(`${origin}/v1/tests/${id}/screenshot`)).status, 401);
+});
+
+test('已有 HTML 单独生成截图，不再调用模型，也不修改质量判定', async () => {
+  const id = randomUUID();
+  const before = calls.length;
+  const denied = await fetch(`${origin}/v1/screenshots`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, html: pelicanHtml }),
+  });
+  assert.equal(denied.status, 401);
+  const response = await api('/v1/screenshots', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, html: pelicanHtml }),
+  });
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).screenshot_url, `/v1/screenshots/${id}`);
+  assert.equal((await api(`/v1/screenshots/${id}`)).status, 200);
+  assert.equal((await fetch(`${origin}/v1/screenshots/${id}`)).status, 401);
+  assert.equal(calls.length, before);
+  assert.equal((await api('/v1/screenshots', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, html: pelicanHtml }),
+  })).status, 200);
 });
 
 test('拒绝内网地址，判定函数不会把包含 121 的回答判为 21', async () => {

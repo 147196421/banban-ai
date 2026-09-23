@@ -363,12 +363,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .run-timestamps time { color: #3d4955; }
 .result-readout p svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 3px; color: #b84c4c; }
 
-.pelican-preview { margin: 20px 0 0; overflow: hidden; border: 1px solid #d5dbe2; border-radius: 9px; background: #fff; box-shadow: 0 8px 22px rgba(35, 49, 66, .08); }
-.pelican-snapshot { display: grid; gap: 7px; padding: 10px; border-bottom: 1px solid #e0e4e9; }
-.pelican-snapshot span { color: #68737e; font-size: 12px; font-weight: 650; }
-.pelican-snapshot img { display: block; width: 100%; height: auto; border: 1px solid #e0e4e9; border-radius: 6px; background: #fff; }
+.pelican-preview { min-width: 0; margin: 20px 0 0; overflow: hidden; border: 1px solid #d5dbe2; border-radius: 9px; background: #fff; box-shadow: 0 8px 22px rgba(35, 49, 66, .08); }
 .preview-chrome {
-  min-height: 38px;
+  min-height: 42px;
   padding: 0 11px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -383,8 +380,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .preview-lights i:nth-child(2) { background: #c7a464; }
 .preview-lights i:nth-child(3) { background: #6c9f8e; }
 .preview-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: 12px; font-weight: 600; }
-.preview-live { color: #488373; font-size: 11px; font-weight: 650; }
-.pelican-frame { display: block; width: 100%; height: clamp(280px, 34vw, 410px); border: 0; background: #fff; }
+.preview-expand { min-height: 42px; border: 0; background: transparent; color: #416a87; font-size: 12px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.preview-expand svg { width: 13px; height: 13px; vertical-align: -2px; }
+.preview-expand:disabled { opacity: .45; cursor: default; }
+.preview-expand:focus-visible, .preview-surface-open:focus-visible, .pelican-dialog-head button:focus-visible { outline: 2px solid #355f90; outline-offset: -3px; }
+.preview-note { margin: 0; padding: 7px 11px; color: #8a5a37; font-size: 12px; }
+.preview-surface { position: relative; width: 100%; aspect-ratio: 4 / 3; max-height: 320px; overflow: hidden; background: #f5f7fa; }
+.preview-surface > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.preview-surface-open { position: absolute; inset: 0; z-index: 1; width: 100%; border: 0; background: transparent; cursor: zoom-in; }
+.pelican-canvas-wrapper, .pelican-full-canvas { position: relative; width: 100%; overflow: hidden; }
+.pelican-canvas-wrapper { height: 100%; pointer-events: none; }
+.pelican-canvas { position: absolute; left: 0; top: 0; display: block; width: 1280px; height: 960px; border: 0; background: white; transform-origin: top left; }
+.pelican-dialog { width: min(1100px, calc(100vw - 28px)); max-width: none; max-height: calc(100dvh - 28px); padding: 0; overflow: hidden; border: 1px solid #cbd5df; border-radius: 12px; background: #fff; box-shadow: 0 22px 80px rgba(19, 39, 57, .28); }
+.pelican-dialog::backdrop { background: rgba(21, 34, 48, .68); }
+.pelican-dialog-head { min-height: 52px; padding: 0 9px 0 17px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #dce2e9; color: #364454; font-size: 14px; }
+.pelican-dialog-actions, .pelican-dialog-tabs { display: flex; align-items: center; }
+.pelican-dialog-actions { gap: 8px; }
+.pelican-dialog-tabs { padding: 2px; border-radius: 7px; background: #eef2f5; }
+.pelican-dialog-tabs button { width: auto; min-width: 44px; height: 36px; padding: 0 9px; font-size: 12px; }
+.pelican-dialog-tabs button[aria-pressed="true"] { background: #fff; color: #345b78; box-shadow: 0 1px 3px #bdc9d2; }
+.pelican-dialog-head button { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #657482; cursor: pointer; }
+.pelican-dialog-head .pelican-dialog-tabs button { width: auto; height: 36px; }
+.pelican-dialog-head button:hover { background: #edf2f6; }
+.pelican-dialog-head svg { width: 19px; height: 19px; }
+.pelican-dialog-body { width: 100%; max-height: calc(100dvh - 80px); overflow: auto; background: #f4f6f8; }
+.pelican-dialog-body > img { display: block; width: 100%; height: auto; margin: 0 auto; object-fit: contain; }
 .preview-missing { min-height: 200px; padding: 26px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; color: #6c7782; }
 .preview-missing svg { width: 26px; color: #4a8d7e; }
 .preview-missing strong { color: #33403e; font-size: 14px; }

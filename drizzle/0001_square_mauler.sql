@@ -1,0 +1,1 @@
+CREATE INDEX `idx_test_tasks_expires_at` ON `test_tasks` (`expires_at`);

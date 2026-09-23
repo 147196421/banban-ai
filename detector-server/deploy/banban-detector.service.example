@@ -1,0 +1,20 @@
+[Unit]
+Description=Banban AI Detector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=banban
+Group=banban
+WorkingDirectory=/opt/banban-ai/detector-server
+EnvironmentFile=/etc/banban-detector.env
+ExecStart=/usr/bin/node /opt/banban-ai/detector-server/server.mjs
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/banban-detector
+
+[Install]
+WantedBy=multi-user.target

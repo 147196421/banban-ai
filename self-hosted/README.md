@@ -2,6 +2,8 @@
 
 `ai.banban.plus` 的 DNS 保持指向 VPS。Nginx 把首页、静态资源和 `/v1/*` 交给本机 Next.js 网站（127.0.0.1:3000）。网站把检测任务交给本机检测进程（127.0.0.1:8787）。检测进程调用用户输入的模型接口 `/models` 与 `/responses`，不依赖参考网站或外部网页托管。用户 API Key 不存进 SQLite，已完成结果和截图保存 7 天。
 
+先检查服务器现有仓库路径与 systemd 单元。下面 `/opt/banban-ai` 只是示例；若现有项目在 `/wwwroot/ai`，将服务文件中的 `WorkingDirectory`、`ExecStart` 和缓存目录都改成实际路径，再拉取更新。不要覆盖同机其他网站。
+
 ## 环境准备
 
 - Linux，Node.js 24+；系统已有 Nginx 和 `ai.banban.plus` HTTPS 证书。

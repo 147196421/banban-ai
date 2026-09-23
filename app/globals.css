@@ -392,19 +392,34 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .pelican-canvas-wrapper { height: 100%; pointer-events: none; }
 .pelican-canvas { position: absolute; left: 0; top: 0; display: block; width: 1280px; height: 960px; border: 0; background: white; transform-origin: top left; }
 .pelican-dialog { width: min(1100px, calc(100vw - 28px)); max-width: none; max-height: calc(100dvh - 28px); padding: 0; overflow: hidden; border: 1px solid #cbd5df; border-radius: 12px; background: #fff; box-shadow: 0 22px 80px rgba(19, 39, 57, .28); }
+.pelican-dialog[open] { display: flex; flex-direction: column; height: min(720px, calc(100dvh - 28px)); }
 .pelican-dialog::backdrop { background: rgba(21, 34, 48, .68); }
 .pelican-dialog-head { min-height: 52px; padding: 0 9px 0 17px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #dce2e9; color: #364454; font-size: 14px; }
-.pelican-dialog-actions, .pelican-dialog-tabs { display: flex; align-items: center; }
+.pelican-dialog-actions { display: flex; align-items: center; }
 .pelican-dialog-actions { gap: 8px; }
-.pelican-dialog-tabs { padding: 2px; border-radius: 7px; background: #eef2f5; }
-.pelican-dialog-tabs button { width: auto; min-width: 44px; height: 36px; padding: 0 9px; font-size: 12px; }
-.pelican-dialog-tabs button[aria-pressed="true"] { background: #fff; color: #345b78; box-shadow: 0 1px 3px #bdc9d2; }
+.pelican-copy-feedback { max-width: 110px; color: #597468; font-size: 11px; white-space: nowrap; }
 .pelican-dialog-head button { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #657482; cursor: pointer; }
-.pelican-dialog-head .pelican-dialog-tabs button { width: auto; height: 36px; }
 .pelican-dialog-head button:hover { background: #edf2f6; }
 .pelican-dialog-head svg { width: 19px; height: 19px; }
-.pelican-dialog-body { width: 100%; max-height: calc(100dvh - 80px); overflow: auto; background: #f4f6f8; }
-.pelican-dialog-body > img { display: block; width: 100%; height: auto; margin: 0 auto; object-fit: contain; }
+.pelican-dialog-body { width: 100%; min-height: 0; flex: 1; overflow: auto; background: #f4f6f8; }
+.pelican-screenshot-panel > img { display: block; width: 100%; height: auto; margin: 0 auto; object-fit: contain; }
+.pelican-view-tabs { min-height: 56px; display: flex; align-items: center; justify-content: center; gap: 6px; border-top: 1px solid #dce2e9; background: #fff; }
+.pelican-view-tabs button { min-width: 74px; min-height: 44px; padding: 3px 8px; display: grid; justify-items: center; align-content: center; gap: 1px; border: 0; border-radius: 6px; background: transparent; color: #667582; font-size: 11px; cursor: pointer; }
+.pelican-view-tabs button[aria-selected="true"] { color: #2d6559; background: #edf6f3; }
+.pelican-view-tabs button:hover { background: #eef3f6; }
+.pelican-view-tabs button:focus-visible { outline: 2px solid #355f90; outline-offset: 2px; }
+.pelican-view-tabs svg { width: 18px; height: 18px; }
+.pelican-source { min-height: 100%; background: #242c2b; color: #e7eceb; }
+.pelican-source pre { max-width: 100%; margin: 0; padding: 18px; overflow: auto; font-size: 12px; line-height: 1.75; tab-size: 2; }
+.pelican-source code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.pelican-prompt { min-height: 100%; padding: clamp(20px, 4vw, 40px); background: #fff; color: #3f5650; }
+.pelican-prompt p { max-width: 70ch; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.85; }
+.pelican-prompt small { display: block; margin-top: 22px; color: #82908e; font-size: 11px; }
+@media (max-width: 640px) {
+  .pelican-dialog[open] { height: auto; }
+  .pelican-dialog-body { height: min(75vw, calc(100dvh - 136px)); flex: 0 1 auto; }
+  .pelican-copy-feedback { max-width: 90px; font-size: 10px; }
+}
 .preview-missing { min-height: 200px; padding: 26px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; color: #6c7782; }
 .preview-missing svg { width: 26px; color: #4a8d7e; }
 .preview-missing strong { color: #33403e; font-size: 14px; }

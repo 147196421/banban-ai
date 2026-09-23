@@ -435,6 +435,14 @@ export function BanbanWorkbench() {
     const generated = asRecord(task?.result);
     return typeof generated.html === "string" ? generated.html.trim() : "";
   }, [benchmark, runState, task]);
+  const pelicanPrompt = useMemo(() => {
+    if (benchmark !== "frontend" || runState !== "success") return "";
+    const generated = asRecord(task?.result);
+    for (const value of [generated.prompt, generated.test_prompt, task?.prompt, task?.test_prompt]) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return "";
+  }, [benchmark, runState, task]);
 
   function resetModels() {
     setModels([]);
@@ -733,6 +741,7 @@ export function BanbanWorkbench() {
             <PelicanPreview
               key={currentRun.taskId}
               html={pelicanHtml}
+              prompt={pelicanPrompt}
               screenshotUrl={typeof asRecord(task?.result).screenshot_url === "string" && currentRun.taskId
                 ? `/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`
                 : undefined}

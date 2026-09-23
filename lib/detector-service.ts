@@ -34,7 +34,7 @@ export function storedDetectorTask(source: DetectorSource, id: string) {
 }
 
 export function readStoredDetectorTask(storedId: string | null | undefined) {
-  const match = /^(manxue|reference|self-hosted):([A-Za-z0-9_-]{1,128})$/.exec(storedId ?? "");
+  const match = /^(manxue|reference|self-hosted):(.+)$/.exec(storedId ?? "");
   if (match) return { source: match[1] as DetectorSource, id: match[2] };
   return {
     source: process.env.BANBAN_SELF_HOSTED === "1" ? "self-hosted" as const : "reference" as const,

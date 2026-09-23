@@ -148,15 +148,13 @@ function describeResult(run: TestRun, benchmark: Benchmark) {
     }
   } else if (benchmark === "frontend" && task) {
     if (quality === "normal") {
-      label = referenceJudgment ? "表现正常" : "结构完整";
+      label = referenceJudgment ? "通过" : "结构完整";
       tone = "pass";
-      summary = referenceJudgment
-        ? readableError(assessment.reason, "本次表现符合预期。")
-        : "检测到动画和主要元素，请结合截图查看。";
+      summary = referenceJudgment ? "" : "检测到动画和主要元素，请结合截图查看。";
     } else if (quality === "degraded" || quality === "suspicious") {
       label = referenceJudgment ? "疑似降智" : "需人工查看";
       tone = "degraded";
-      summary = readableError(assessment.reason, "部分结构未能确认，请查看作品。");
+      summary = referenceJudgment ? "" : readableError(assessment.reason, "部分结构未能确认，请查看作品。");
     } else {
       label = "无法判定";
       tone = "unknown";

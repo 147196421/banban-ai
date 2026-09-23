@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     const benchmark = body.benchmark === "frontend" ? "pelican" : "candy";
     const freeCreation = benchmark === "pelican" && body.freeCreation === true;
     const protocol = body.protocol === "chat_completions" ? "chat_completions" : "responses";
-    const service = getDetectorService(freeCreation ? "manxue-visitor" : undefined);
+    const service = getDetectorService(freeCreation ? "manxue-visitor" : "manxue");
     if (!service) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }

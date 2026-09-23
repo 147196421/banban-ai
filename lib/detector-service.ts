@@ -8,11 +8,9 @@ export type DetectorSource = "manxue" | "manxue-visitor" | "reference" | "self-h
 
 export function getDetectorService(source?: DetectorSource) {
   const previousUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
-  const selected = source ?? (
-    process.env.BANBAN_EVALUATION_MODE === "self-hosted" ? "self-hosted"
-      : process.env.BANBAN_EVALUATION_MODE === "reference" ? "reference"
-        : process.env.BANBAN_SELF_HOSTED !== "1" && previousUrl ? "reference" : "manxue"
-  );
+  // New tests always use Manxue. Explicit sources are retained for historical
+  // results and for the separate local screenshot service.
+  const selected = source ?? "manxue";
 
   if (selected === "manxue") {
     return { url: manxueTestsUrl, headers: {} as Record<string, string>, source: selected };

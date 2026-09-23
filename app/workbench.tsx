@@ -142,11 +142,9 @@ function describeResult(run: TestRun, benchmark: Benchmark) {
     if (candyStatus === "passed") {
       label = "通过";
       tone = "pass";
-      summary = "本次回答符合预期。";
     } else if (candyStatus === "incorrect") {
-      label = "未通过";
+      label = "不通过";
       tone = "degraded";
-      summary = "本次回答与预期不符。";
     } else {
       label = "无法判定";
       tone = "unknown";

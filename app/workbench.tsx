@@ -433,13 +433,13 @@ export function BanbanWorkbench() {
   const pelicanHtml = useMemo(() => {
     if (benchmark !== "frontend" || runState !== "success") return "";
     const generated = asRecord(task?.result);
-    return typeof generated.html === "string" ? generated.html.trim() : "";
+    return typeof generated.html === "string" && generated.html.trim() ? generated.html : "";
   }, [benchmark, runState, task]);
   const pelicanPrompt = useMemo(() => {
     if (benchmark !== "frontend" || runState !== "success") return "";
     const generated = asRecord(task?.result);
     for (const value of [generated.prompt, generated.test_prompt, task?.prompt, task?.test_prompt]) {
-      if (typeof value === "string" && value.trim()) return value.trim();
+      if (typeof value === "string" && value.trim()) return value;
     }
     return "";
   }, [benchmark, runState, task]);

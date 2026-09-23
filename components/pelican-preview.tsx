@@ -118,13 +118,16 @@ export function PelicanPreview({ html, prompt, screenshotUrl, screenshotError }:
             <button type="button" aria-label="关闭作品预览" onClick={() => dialog.current?.close()}><X aria-hidden="true" /></button>
           </div>
         </div>
-        <div className="pelican-dialog-body" ref={fullRef}>
+        <div className="pelican-dialog-body" data-view={detailMode} ref={fullRef}>
           {detailMode === "code" && html ? (
-            <div className="pelican-source" role="tabpanel" id="pelican-panel-code" aria-labelledby="pelican-tab-code"><pre><code>{html}</code></pre></div>
+            <div className="pelican-source" role="tabpanel" id="pelican-panel-code" aria-labelledby="pelican-tab-code">
+              <p>本次模型返回的完整 HTML，与作品预览使用同一份内容。</p>
+              <pre><code>{html}</code></pre>
+            </div>
           ) : detailMode === "prompt" && html ? (
             <div className="pelican-prompt" role="tabpanel" id="pelican-panel-prompt" aria-labelledby="pelican-tab-prompt">
               <p>{prompt || fixedPromptSummary}</p>
-              {!prompt && <small>固定测试题目 · 本次接口结果未单独返回提示词</small>}
+              <small>{prompt ? "本次接口返回的测试提示词" : "标准固定测试题目 · 本次接口结果未单独返回提示词"}</small>
             </div>
           ) : detailMode === "screenshot" && hasScreenshot ? (
             <div className="pelican-screenshot-panel" role="tabpanel" id="pelican-panel-work" aria-labelledby="pelican-tab-work">

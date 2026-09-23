@@ -726,7 +726,7 @@ export function BanbanWorkbench() {
                     setFreeCreation(event.target.checked);
                     setRequestProtocol(event.target.checked ? "responses" : "chat_completions");
                   }} />
-                  <span><strong>自由创作</strong><small>随机组合创作素材，生成作品后仍会判定通过或疑似降智。</small></span>
+                  <span><strong>自由创作</strong><small>随机组合创作素材。</small></span>
                 </label>
               </div>
             )}

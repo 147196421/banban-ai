@@ -8,7 +8,7 @@
 
 - Linux、Node.js 24 或更新、可连接目标 GPT API。
 - Chromium：先安装系统依赖，再**以运行服务的同一用户**下载浏览器。若服务器已有可运行的 Chrome/Chromium，可设置 `CHROME_PATH=/usr/bin/chromium`。
-- 一个属于自己的 HTTPS 域名，由 Nginx 反向代理到 `127.0.0.1:8787`。公网**不要直接开放 8787**。
+- 自有 HTTPS 域名 `ai.banban.plus`：Nginx 将 `/v1/` 和 `/health` 转给本机服务，将 `/` 和网站的 `/api/*` 转给现有前端。公网**不要直接开放 8787**。
 - 独立生成一个不少于 32 位的 `SERVICE_TOKEN`；网站和服务必须使用同一值，且不得提交到 GitHub。
 
 ## 安装与启动
@@ -36,7 +36,7 @@ sudo -u banban -H env SERVICE_TOKEN="$(openssl rand -hex 32)" DATA_DIR=/var/lib/
 | `HOST` | 默认 `127.0.0.1`，只接受本机反代 |
 | `CHROME_PATH` | 可选，系统 Chromium 的可执行路径 |
 
-先确认 `curl http://127.0.0.1:8787/health` 返回 `{"status":"ok"}`，再用自己的域名验证 `https://你的检测域名/health`。创建任务为 `POST /v1/tests`，查询任务为 `GET /v1/tests/:id`，截图为 `GET /v1/tests/:id/screenshot`。这三个接口均需要请求头 `X-Banban-Service-Token`，且网站已有代理负责发送，不需要让浏览器持有共享密钥。
+先确认 `curl http://127.0.0.1:8787/health` 返回 `{"status":"ok"}`，再验证 `https://ai.banban.plus/health`。访问 `https://ai.banban.plus/` 应显示办办AI网站，并保持地址栏域名不变。创建任务为 `POST /v1/tests`，查询任务为 `GET /v1/tests/:id`，截图为 `GET /v1/tests/:id/screenshot`。这三个接口均需要请求头 `X-Banban-Service-Token`，且网站已有代理负责发送，不需要让浏览器持有共享密钥。
 
 ## 接入办办AI 网站
 
@@ -46,7 +46,7 @@ sudo -u banban -H env SERVICE_TOKEN="$(openssl rand -hex 32)" DATA_DIR=/var/lib/
 BANBAN_TEST_SERVICE_TOKEN=与服务器 SERVICE_TOKEN 相同的密钥
 ```
 
-网站已将自有服务地址固定为 `https://ai.banban.plus/v1/tests`。配置密钥后，网站将自动使用自有服务，之后可删除旧的 `BANBAN_TEST_SERVICE_URL`；切换前先检查 `/health`、证书和两项测试，并确认旧任务已完成。网站的 `/api/models` 仍只读取用户所填模型接口；历史记录仍保留在用户浏览器中。不要在公开页面、仓库或截图里显示共享密钥。
+网站已将自有服务地址固定为 `https://ai.banban.plus/v1/tests`。配置密钥后，网站将自动使用自有服务，之后可删除旧的 `BANBAN_TEST_SERVICE_URL`；切换前先检查 `/health`、证书和两项测试，并确认旧任务已完成。Nginx 的 `/` 反向代理现有前端，网页地址栏可保持 `ai.banban.plus`；这不等于把前端和站点数据库迁入 VPS。网站的 `/api/models` 仍只读取用户所填模型接口；历史记录仍保留在用户浏览器中。不要在公开页面、仓库或截图里显示共享密钥。
 
 ## 运行限制
 

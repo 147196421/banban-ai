@@ -297,7 +297,7 @@ export function BanbanWorkbench() {
       const controller = new AbortController();
       controllers.push(controller);
       try {
-        const response = await fetch(`/api/tests/${encodeURIComponent(taskId)}`, {
+        const response = await fetch(`/v1/tests/${encodeURIComponent(taskId)}`, {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -381,7 +381,7 @@ export function BanbanWorkbench() {
       if (document.visibilityState === "hidden") return;
       await Promise.all(ids.map(async (id) => {
         try {
-          const response = await fetch(`/api/tests/${encodeURIComponent(id)}`, { cache: "no-store" });
+          const response = await fetch(`/v1/tests/${encodeURIComponent(id)}`, { cache: "no-store" });
           if (!response.ok) return;
           const task = await response.json() as JsonRecord;
           if (stopped) return;
@@ -475,7 +475,7 @@ export function BanbanWorkbench() {
     setModelMessage("");
 
     try {
-      const response = await fetch("/api/models", {
+      const response = await fetch("/v1/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ baseUrl, apiKey }),
@@ -529,7 +529,7 @@ export function BanbanWorkbench() {
     patchRun(kind, queuedRun);
 
     try {
-      const response = await fetch("/api/tests", {
+      const response = await fetch("/v1/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort }),
@@ -729,7 +729,7 @@ export function BanbanWorkbench() {
                 <div className="pelican-snapshot">
                   <span>浏览器截图</span>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`/api/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`} alt="鹈鹕骑行作品的实际浏览器截图" loading="lazy" />
+                  <img src={`/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`} alt="鹈鹕骑行作品的实际浏览器截图" loading="lazy" />
                 </div>
               )}
               {typeof asRecord(task?.result).screenshot_error === "string" && (

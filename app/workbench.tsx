@@ -812,9 +812,7 @@ export function BanbanWorkbench() {
               key={currentRun.taskId}
               html={pelicanHtml}
               prompt={pelicanPrompt}
-              screenshotUrl={typeof asRecord(task?.result).screenshot_url === "string" && currentRun.taskId
-                ? `/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot`
-                : undefined}
+              screenshotUrl={currentRun.taskId ? `/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot` : undefined}
             />
           )}
 

@@ -385,7 +385,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .preview-expand:disabled { opacity: .45; cursor: default; }
 .preview-expand:focus-visible, .preview-surface-open:focus-visible, .pelican-dialog-head button:focus-visible { outline: 2px solid #355f90; outline-offset: -3px; }
 .preview-note { margin: 0; padding: 7px 11px; color: #8a5a37; font-size: 12px; }
-.preview-surface { position: relative; width: 100%; aspect-ratio: 4 / 3; max-height: 320px; overflow: hidden; background: #f5f7fa; }
+.preview-surface { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: #f5f7fa; }
 .preview-surface > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
 .preview-surface-open { position: absolute; inset: 0; z-index: 1; width: 100%; border: 0; background: transparent; cursor: zoom-in; }
 .pelican-canvas-wrapper, .pelican-full-canvas { position: relative; width: 100%; overflow: hidden; }

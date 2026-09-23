@@ -90,7 +90,7 @@ export async function POST(request: Request) {
         const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
         if (!response.ok) {
           const error = response.status >= 500
-            ? `上游模型接口返回 HTTP ${response.status}，生成未完成，请稍后重试`
+            ? "服务器暂时无法完成生成，请稍后重试"
             : toChineseError(payload.error, "模型接口调用失败", response.status, "test");
           await markStoredTaskFailed(id, error);
           return;

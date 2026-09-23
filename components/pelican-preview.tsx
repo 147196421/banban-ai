@@ -82,13 +82,13 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
           查看完整作品 <ArrowUpRight aria-hidden="true" />
         </button>
       </div>
-      {hasScreenshot || html ? (
+      {html || hasScreenshot ? (
         <div className="preview-surface" ref={thumbnailRef}>
-          {hasScreenshot ? (
+          {html && thumbnailWidth > 0 ? (
+            <div className="pelican-canvas-wrapper" aria-hidden="true">{renderCanvas(thumbnailWidth, false)}</div>
+          ) : hasScreenshot ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={screenshotUrl} alt={`${title}作品预览`} loading="lazy" onError={() => setImageFailed(true)} />
-          ) : thumbnailWidth > 0 ? (
-            <div className="pelican-canvas-wrapper" aria-hidden="true">{renderCanvas(thumbnailWidth, false)}</div>
           ) : null}
           <button type="button" className="preview-surface-open" onClick={open} aria-label={`查看完整${title}作品`} />
         </div>

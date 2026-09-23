@@ -1,7 +1,6 @@
 import { finishStoredTask, getStoredTask, markStoredTaskFailed } from "@/db/test-tasks";
 import { localizeErrorPayload } from "@/lib/user-facing-error";
 import { getDetectorService, readStoredDetectorTask } from "@/lib/detector-service";
-import { attachLocalScreenshot } from "@/lib/report-screenshot";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +57,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const baseReport = localized && typeof localized === "object"
       ? { ...(localized as Record<string, unknown>), id, evaluation_source: service.source === "manxue-visitor" ? "manxue" : service.source }
       : localized;
-    const report = response.ok && baseReport && typeof baseReport === "object"
-      ? await attachLocalScreenshot(baseReport as Record<string, unknown>, id)
-      : baseReport;
+    // 作品先返回给用户；浏览器截图只在用户主动打开截图视图时生成。
+    const report = baseReport;
     if (stored && response.ok && report && typeof report === "object") {
       const status = String((report as { status?: unknown }).status ?? "");
       if (["succeeded", "failed", "cancelled"].includes(status)) {

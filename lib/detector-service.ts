@@ -1,25 +1,43 @@
-// 办办AI 自建检测服务。共享密钥仅由网站服务器发送，浏览器不会接触它。
+// 检测任务由网站服务器转发，浏览器不会直接接触检测服务或附带的 API Key。
+const manxueTestsUrl = "https://manxue.ai/api/v1/tests";
 const ownTestsUrl = "https://detector.banban.plus/v1/tests";
 
-export function getDetectorService() {
+export type DetectorSource = "manxue" | "reference" | "self-hosted";
+
+export function getDetectorService(source?: DetectorSource) {
   const previousUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
-  // 需要与旧站完全相同的判定时，显式使用旧站配置的检测服务。
-  if (process.env.BANBAN_EVALUATION_MODE === "reference") {
+  const selected = source ?? (
+    process.env.BANBAN_EVALUATION_MODE === "self-hosted" ? "self-hosted"
+      : process.env.BANBAN_EVALUATION_MODE === "reference" ? "reference"
+        : process.env.BANBAN_SELF_HOSTED !== "1" && previousUrl ? "reference" : "manxue"
+  );
+
+  if (selected === "manxue") {
+    return { url: manxueTestsUrl, headers: {} as Record<string, string>, source: selected };
+  }
+  if (selected === "reference") {
     if (!previousUrl?.startsWith("https://")) return null;
-    return { url: previousUrl, headers: {} as Record<string, string>, source: "reference" as const };
+    return { url: previousUrl, headers: {} as Record<string, string>, source: selected };
   }
 
   const token = process.env.BANBAN_TEST_SERVICE_TOKEN?.trim();
-  if (token) {
-    if (token.length < 32) return null;
-    const localUrl = process.env.BANBAN_SELF_HOSTED === "1"
-      ? "http://127.0.0.1:8787/v1/tests"
-      : ownTestsUrl;
-    return { url: localUrl, headers: { "X-Banban-Service-Token": token }, source: "self-hosted" as const };
-  }
+  if (!token || token.length < 32) return null;
+  const localUrl = process.env.BANBAN_SELF_HOSTED === "1"
+    ? "http://127.0.0.1:8787/v1/tests"
+    : ownTestsUrl;
+  return { url: localUrl, headers: { "X-Banban-Service-Token": token }, source: selected };
+}
 
-  if (process.env.BANBAN_SELF_HOSTED === "1") return null;
-  // 旧版上线期间保持现有任务可查询；配置自建服务密钥后即自动切换。
-  if (!previousUrl?.startsWith("https://")) return null;
-  return { url: previousUrl, headers: {} as Record<string, string>, source: "reference" as const };
+// 在任务索引中保留创建时使用的服务，切换配置后仍能查询旧任务和截图。
+export function storedDetectorTask(source: DetectorSource, id: string) {
+  return `${source}:${id}`;
+}
+
+export function readStoredDetectorTask(storedId: string | null | undefined) {
+  const match = /^(manxue|reference|self-hosted):([A-Za-z0-9_-]{1,128})$/.exec(storedId ?? "");
+  if (match) return { source: match[1] as DetectorSource, id: match[2] };
+  return {
+    source: process.env.BANBAN_SELF_HOSTED === "1" ? "self-hosted" as const : "reference" as const,
+    id: storedId ?? "",
+  };
 }

@@ -1,6 +1,6 @@
 import { finishStoredTask, getStoredTask, markStoredTaskFailed } from "@/db/test-tasks";
 import { localizeErrorPayload } from "@/lib/user-facing-error";
-import { getDetectorService } from "@/lib/detector-service";
+import { getDetectorService, readStoredDetectorTask } from "@/lib/detector-service";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +11,6 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   }
 
   try {
-    const service = getDetectorService();
-    if (!service) {
-      return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
-    }
-
     const stored = await getStoredTask(id);
     if (stored?.payload_json) {
       try {
@@ -37,7 +32,12 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return Response.json({ id, status: "queued", phase: "creating" });
     }
 
-    const upstreamTaskId = stored?.upstream_task_id || id;
+    const upstream = readStoredDetectorTask(stored?.upstream_task_id);
+    const service = getDetectorService(stored?.upstream_task_id ? upstream.source : undefined);
+    if (!service) {
+      return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
+    }
+    const upstreamTaskId = upstream.id || id;
 
     const response = await fetch(`${service.url}/${encodeURIComponent(upstreamTaskId)}`, {
       headers: {

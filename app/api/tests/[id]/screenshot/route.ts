@@ -1,5 +1,5 @@
 import { getStoredTask } from "@/db/test-tasks";
-import { getDetectorService } from "@/lib/detector-service";
+import { getDetectorService, readStoredDetectorTask } from "@/lib/detector-service";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +13,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     if (!stored?.upstream_task_id || !result?.screenshot_url || stored.status !== "succeeded") {
       return new Response(null, { status: 404 });
     }
-    const service = getDetectorService();
+    const upstream = readStoredDetectorTask(stored.upstream_task_id);
+    const service = getDetectorService(upstream.source);
     if (!service) return new Response(null, { status: 503 });
-    const image = await fetch(`${service.url}/${encodeURIComponent(stored.upstream_task_id)}/screenshot`, {
+    const image = await fetch(`${service.url}/${encodeURIComponent(upstream.id)}/screenshot`, {
       headers: {
         Accept: "image/png",
         ...service.headers,

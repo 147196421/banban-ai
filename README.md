@@ -1,6 +1,6 @@
 # 办办AI
 
-只想先通过服务器 IP 使用网站，请按 [IP 独立部署说明](self-hosted/IP-DEPLOY.md)操作。域名部署另见 [自建部署说明](self-hosted/README.md)。如果需要与旧托管站**相同的判定接口**，另见 [旧站检测服务接入](self-hosted/REFERENCE-DETECTOR.md)。下文为旧托管构建的原始说明。
+只想先通过服务器 IP 使用网站，请按 [IP 独立部署说明](self-hosted/IP-DEPLOY.md)操作。域名部署另见 [自建部署说明](self-hosted/README.md)。新任务默认使用满血 AI 的公开检测接口，调用说明见 [检测接口接入](self-hosted/REFERENCE-DETECTOR.md)。下文为旧托管构建的原始说明。
 
 A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
 

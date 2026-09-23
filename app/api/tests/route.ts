@@ -10,7 +10,7 @@ import {
 import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
 import { localizeErrorPayload, toChineseError } from "@/lib/user-facing-error";
 import { checkRateLimit } from "@/db/rate-limit";
-import { getDetectorService } from "@/lib/detector-service";
+import { getDetectorService, storedDetectorTask } from "@/lib/detector-service";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
           return;
         }
 
-        await markStoredTaskActive(submissionId, upstreamTaskId);
+        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, upstreamTaskId));
         await removeExpiredTasks().catch(() => undefined);
       } catch (error) {
         const timeout = error instanceof Error && error.name === "TimeoutError";

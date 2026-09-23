@@ -117,7 +117,7 @@ function describeResult(run: TestRun, benchmark: Benchmark) {
   const generated = asRecord(task?.result);
   const candyStatus = candy.status;
   const quality = assessment.quality;
-  const referenceJudgment = task?.evaluation_source === "reference";
+  const referenceJudgment = task?.evaluation_source === "reference" || task?.evaluation_source === "manxue";
 
   let label = "等待检测";
   let tone = "idle";
@@ -716,7 +716,7 @@ export function BanbanWorkbench() {
           </div>
 
           <div className="result-readout" aria-label={`检测结果：${result.label}`}>
-            <span>{benchmark === "reasoning" ? "逻辑题判定" : task?.evaluation_source === "reference" ? "作品质量判定" : "作品结构检查"}</span>
+            <span>{benchmark === "reasoning" ? "逻辑题判定" : ["reference", "manxue"].includes(String(task?.evaluation_source ?? "")) ? "作品质量判定" : "作品结构检查"}</span>
             <strong>{result.label}</strong>
             {result.summary && <p>{result.tone === "error" && <AlertTriangle aria-hidden="true" />}{result.summary}</p>}
           </div>

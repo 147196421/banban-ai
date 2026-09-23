@@ -1,14 +1,9 @@
-# 与旧站使用同一套检测服务
+# 使用满血 AI 的公开检测接口
 
-原托管站的检测请求发往其私有配置 `BANBAN_TEST_SERVICE_URL`。自建 VPS 默认使用本机检测服务，鹈鹕项只检查动画和元素结构，因此两个服务的“表现正常／疑似降智”结论不能互相替代。
+满血 AI 的 [API 文档](https://manxue.ai/api) 公开 `POST https://manxue.ai/api/v1/tests` 和 `GET https://manxue.ai/api/v1/tests/{id}`，无需该站令牌。网站服务端提交用户填写的模型 API 地址和 Key，检测服务调用模型并返回糖果结果或鹈鹕判定。此地址与用户填写的模型 API 地址不同；检测依赖满血 AI 的可用性，模型调用仍消耗用户 Key 的额度。用户 Key 不写进本地数据库或浏览器缓存，但会随单次检测请求发送给满血 AI。
 
-要让自建网站使用旧站相同的判定，在**网站进程**环境文件中设置：
+VPS 构建默认使用该公开接口；若现有服务器曾设置 `BANBAN_EVALUATION_MODE=reference` 或 `self-hosted`，部署时将其改为 `BANBAN_EVALUATION_MODE=manxue`。网站自己的 `/v1/tests` 保留任务索引与历史记录，浏览器切到后台后可继续查询。满血 AI 的任务最多运行 10 分钟、保留 1 小时；办办 AI 会保存已完成的结果，远程作品/截图资源的持续可用性取决于上游接口。
 
-```text
-BANBAN_EVALUATION_MODE=reference
-BANBAN_TEST_SERVICE_URL=旧站现有配置中的完整 HTTPS 检测任务地址
-```
+历史任务会使用创建时的检测服务查询。旧的本机检测结果仍标为结构检查，不会被改写为满血 AI 的判定。等正在执行的旧任务完成后更新更稳妥。满血 AI 当前不开放浏览器跨域调用，必须由网站服务器发起请求。服务不可达时显示检测失败，不会静默改成本机的简易规则。
 
-该地址需要从旧站原始部署配置中取得，仓库没有保存其实际值；它不是用户填写的模型接口 `https://api.banban.plus/v1`，也不是旧站的网页首页。不要猜测 URL、把密钥写入仓库或把模型 API 地址填入这里。保留网站自己的数据库环境变量；只需重启网站进程，不需要重启服务器或检测服务。
-
-新提交的任务会使用旧站同一检测接口，并显示其“表现正常／疑似降智”判定。已由本机检测服务完成的旧历史记录仍按结构检查显示。切换前等正在运行的任务完成；切换后使用同一模型接口分别验收糖果和鹈鹕，核对结果与截图。
+如需恢复原本的本机结构检查，在网站进程设置 `BANBAN_EVALUATION_MODE=self-hosted`，保留原有 `BANBAN_SELF_HOSTED=1` 和 `BANBAN_TEST_SERVICE_TOKEN`。若已持有旧托管站真实检测地址，也可设置 `BANBAN_EVALUATION_MODE=reference` 与 `BANBAN_TEST_SERVICE_URL`；目前无法仅凭该私有配置断言它等于满血 AI 的地址。

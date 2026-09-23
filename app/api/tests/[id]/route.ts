@@ -1,5 +1,6 @@
 import { finishStoredTask, getStoredTask, markStoredTaskFailed } from "@/db/test-tasks";
 import { localizeErrorPayload } from "@/lib/user-facing-error";
+import { getDetectorService } from "@/lib/detector-service";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +11,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   }
 
   try {
-    const testsUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
-    if (!testsUrl?.startsWith("https://")) {
+    const service = getDetectorService();
+    if (!service) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }
 
@@ -38,10 +39,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     const upstreamTaskId = stored?.upstream_task_id || id;
 
-    const response = await fetch(`${testsUrl}/${encodeURIComponent(upstreamTaskId)}`, {
+    const response = await fetch(`${service.url}/${encodeURIComponent(upstreamTaskId)}`, {
       headers: {
         Accept: "application/json",
-        ...(process.env.BANBAN_TEST_SERVICE_TOKEN ? { "X-Banban-Service-Token": process.env.BANBAN_TEST_SERVICE_TOKEN } : {}),
+        ...service.headers,
       },
       cache: "no-store",
       redirect: "manual",

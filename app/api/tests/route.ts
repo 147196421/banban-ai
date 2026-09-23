@@ -10,6 +10,7 @@ import {
 import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
 import { localizeErrorPayload, toChineseError } from "@/lib/user-facing-error";
 import { checkRateLimit } from "@/db/rate-limit";
+import { getDetectorService } from "@/lib/detector-service";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +35,8 @@ function storedTaskResponse(task: Awaited<ReturnType<typeof getStoredTask>>) {
 
 export async function POST(request: Request) {
   try {
-    const testsUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
-    if (!testsUrl?.startsWith("https://")) {
+    const service = getDetectorService();
+    if (!service) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }
 
@@ -83,12 +84,12 @@ export async function POST(request: Request) {
 
     after(async () => {
       try {
-        const response = await fetch(testsUrl, {
+        const response = await fetch(service.url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
-            ...(process.env.BANBAN_TEST_SERVICE_TOKEN ? { "X-Banban-Service-Token": process.env.BANBAN_TEST_SERVICE_TOKEN } : {}),
+            ...service.headers,
           },
           body: JSON.stringify({
             benchmark,

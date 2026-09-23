@@ -1,4 +1,5 @@
 import { getStoredTask } from "@/db/test-tasks";
+import { getDetectorService } from "@/lib/detector-service";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,12 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     if (!stored?.upstream_task_id || !result?.screenshot_url || stored.status !== "succeeded") {
       return new Response(null, { status: 404 });
     }
-    const testsUrl = process.env.BANBAN_TEST_SERVICE_URL?.trim().replace(/\/+$/, "");
-    if (!testsUrl?.startsWith("https://")) return new Response(null, { status: 503 });
-    const image = await fetch(`${testsUrl}/${encodeURIComponent(stored.upstream_task_id)}/screenshot`, {
+    const service = getDetectorService();
+    if (!service) return new Response(null, { status: 503 });
+    const image = await fetch(`${service.url}/${encodeURIComponent(stored.upstream_task_id)}/screenshot`, {
       headers: {
         Accept: "image/png",
-        ...(process.env.BANBAN_TEST_SERVICE_TOKEN ? { "X-Banban-Service-Token": process.env.BANBAN_TEST_SERVICE_TOKEN } : {}),
+        ...service.headers,
       },
       redirect: "manual",
       cache: "no-store",

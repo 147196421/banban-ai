@@ -40,14 +40,13 @@ sudo -u banban -H env SERVICE_TOKEN="$(openssl rand -hex 32)" DATA_DIR=/var/lib/
 
 ## 接入办办AI 网站
 
-在网站的 Sites 运行环境中同时设置：
+在网站的 Sites 运行环境中设置：
 
 ```text
-BANBAN_TEST_SERVICE_URL=https://你的检测域名/v1/tests
 BANBAN_TEST_SERVICE_TOKEN=与服务器 SERVICE_TOKEN 相同的密钥
 ```
 
-切换前先发回 HTTPS 域名和共享密钥，以便对接、检查 `/health`，然后再改网站的运行环境并实测两项。网站原有的 `/api/models` 仍直接读取用户所填模型接口；历史记录仍保留在用户浏览器中。切换后不要在公开页面、仓库或截图里显示共享密钥。
+网站已将自有服务地址固定为 `https://ai.banban.plus/v1/tests`。配置密钥后，网站将自动使用自有服务，之后可删除旧的 `BANBAN_TEST_SERVICE_URL`；切换前先检查 `/health`、证书和两项测试，并确认旧任务已完成。网站的 `/api/models` 仍只读取用户所填模型接口；历史记录仍保留在用户浏览器中。不要在公开页面、仓库或截图里显示共享密钥。
 
 ## 运行限制
 

@@ -203,7 +203,6 @@ export function BanbanWorkbench() {
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
   const [manualModel, setManualModel] = useState(false);
-  const [effort, setEffort] = useState(defaultEffort("reasoning"));
   const [requestProtocol, setRequestProtocol] = useState<"responses" | "chat_completions">("responses");
   const [customPrompt, setCustomPrompt] = useState("");
   const [freeCreation, setFreeCreation] = useState(false);
@@ -582,6 +581,7 @@ export function BanbanWorkbench() {
   async function startTest() {
     if (!ready) return;
     const kind = benchmark;
+    const effort = defaultEffort(kind);
     const model = selectedModel.trim();
     const submissionId = createSubmissionId();
     const startedAt = Date.now();
@@ -618,7 +618,7 @@ export function BanbanWorkbench() {
       const response = await fetch(kind === "custom" ? "/v1/generations" : "/v1/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, reasoningEffort: effort, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation, protocol: requestProtocol } : {}) }),
+        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation, protocol: requestProtocol } : {}) }),
         keepalive: true,
       });
       const created = (await response.json()) as JsonRecord;
@@ -648,7 +648,6 @@ export function BanbanWorkbench() {
     const next = value as Benchmark;
     setBenchmark(next);
     setSelectedHistoryId("");
-    setEffort(defaultEffort(next));
     setRequestProtocol("responses");
   }
 
@@ -767,17 +766,6 @@ export function BanbanWorkbench() {
               {(manualModelError || modelMessage) && <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || modelMessage}</p>}
             </div>
 
-            <div className="field field-wide">
-              <Label htmlFor="effort">推理程度</Label>
-              <NativeSelect id="effort" className="model-select" value={effort} onChange={(event) => setEffort(event.target.value)}>
-                <NativeSelectOption value="low">低</NativeSelectOption>
-                <NativeSelectOption value="medium">中等</NativeSelectOption>
-                <NativeSelectOption value="high">高</NativeSelectOption>
-                {benchmark === "reasoning" && <NativeSelectOption value="xhigh">超高</NativeSelectOption>}
-                {benchmark === "reasoning" && <NativeSelectOption value="max">最大</NativeSelectOption>}
-                {benchmark === "reasoning" && <NativeSelectOption value="ultra">极限</NativeSelectOption>}
-              </NativeSelect>
-            </div>
             {benchmark !== "reasoning" && (
               <div className="field field-wide">
                 <Label htmlFor="request-protocol">请求协议</Label>
@@ -930,7 +918,6 @@ export function BanbanWorkbench() {
                         onClick={() => {
                           setBenchmark(entry.benchmark);
                           setSelectedHistoryId(entry.taskId);
-                          setEffort(defaultEffort(entry.benchmark));
                           setRequestProtocol("responses");
                           document.getElementById("reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
                         }}

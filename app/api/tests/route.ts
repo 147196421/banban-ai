@@ -47,7 +47,8 @@ export async function POST(request: Request) {
     if (!service) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }
-    const effort = typeof body.reasoningEffort === "string" ? body.reasoningEffort : benchmark === "candy" ? "medium" : "low";
+    // 固定为满血 AI 对应测试的推理程度；忽略旧版客户端传入的选择。
+    const effort = benchmark === "candy" ? "medium" : "low";
 
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId)) {
       return Response.json({ error: "检测任务编号无效" }, { status: 400 });
@@ -58,13 +59,6 @@ export async function POST(request: Request) {
     }
     if (!isGptModel(model)) {
       return Response.json({ error: "目前仅支持 GPT 系列模型" }, { status: 400 });
-    }
-
-    const allowedEfforts = benchmark === "candy"
-      ? ["low", "medium", "high", "xhigh", "max", "ultra"]
-      : ["low", "medium", "high"];
-    if (!allowedEfforts.includes(effort)) {
-      return Response.json({ error: "当前测试不支持这个推理程度" }, { status: 400 });
     }
 
     const rateLimit = await checkRateLimit(request, "test-create", 12, 60 * 60 * 1000);

@@ -36,7 +36,8 @@ export async function POST(request: Request) {
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const model = typeof body.model === "string" ? body.model.trim() : "";
-    const effort = typeof body.reasoningEffort === "string" ? body.reasoningEffort : "low";
+    // 自定义创作始终使用低推理，避免旧版客户端传入高推理导致等待过久。
+    const effort = "low";
     const protocol = body.protocol === "chat_completions" ? "chat_completions" : "responses";
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
 
@@ -46,8 +47,6 @@ export async function POST(request: Request) {
       return Response.json({ error: "请检查 API Key 和 GPT 模型" }, { status: 400 });
     if (!prompt || prompt.length > 12000)
       return Response.json({ error: "请输入不超过 12000 字的提示词" }, { status: 400 });
-    if (!["low", "medium", "high"].includes(effort))
-      return Response.json({ error: "当前推理程度不受支持" }, { status: 400 });
 
     const rate = await checkRateLimit(request, "custom-generation", 6, 60 * 60 * 1000);
     if (!rate.allowed) return Response.json({ error: "生成过于频繁，请稍后重试" }, { status: 429 });

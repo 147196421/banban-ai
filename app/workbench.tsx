@@ -42,6 +42,7 @@ type TestRun = {
   taskId: string;
   runError: string;
   model: string;
+  freeCreation?: boolean;
   requestProtocol?: "responses" | "chat_completions";
   reasoningEffort?: string;
   startedAt: number;
@@ -581,6 +582,7 @@ export function BanbanWorkbench() {
       taskId: submissionId,
       runError: "",
       model,
+      ...(kind === "frontend" ? { freeCreation } : {}),
       requestProtocol: kind === "reasoning" || (kind === "frontend" && freeCreation) ? "responses" : requestProtocol,
       reasoningEffort: effort,
       startedAt,
@@ -867,6 +869,7 @@ export function BanbanWorkbench() {
           {benchmark === "frontend" && runState === "success" && pelicanHtml && (
             <PelicanPreview
               key={currentRun.taskId}
+              title={currentRun.freeCreation ? "自由创作" : "鹈鹕骑行"}
               html={pelicanHtml}
               prompt={pelicanPrompt}
               screenshotUrl={currentRun.taskId ? `/v1/tests/${encodeURIComponent(currentRun.taskId)}/screenshot` : undefined}
@@ -912,7 +915,7 @@ export function BanbanWorkbench() {
                           document.getElementById("reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
                         }}
                       >
-                        <span className="history-main"><strong>{entry.model}</strong><small>{entry.benchmark === "reasoning" ? "糖果" : entry.benchmark === "frontend" ? "鹈鹕" : "自定义"}</small></span>
+                        <span className="history-main"><strong>{entry.model}</strong><small>{entry.benchmark === "reasoning" ? "糖果" : entry.benchmark === "frontend" ? entry.freeCreation ? "自由创作" : "鹈鹕" : "自定义"}</small></span>
                         <time dateTime={new Date(entry.startedAt).toISOString()}>{formatTime(entry.startedAt)}</time>
                         {(entry.benchmark !== "custom" || entry.runState !== "success") && <span className={`history-status history-status-${item.tone}`}>{item.label}</span>}
                       </button>

@@ -141,12 +141,12 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
           ) : detailMode === "prompt" && html ? (
             <div className="pelican-prompt" role="tabpanel" id="pelican-panel-prompt" aria-labelledby="pelican-tab-prompt">
               <p>{prompt || (title === "鹈鹕骑行" ? fixedPromptSummary : "本次未保存提示词")}</p>
-              <small>{title === "鹈鹕骑行" ? prompt ? "本次接口返回的测试提示词" : "标准固定测试题目 · 本次接口结果未单独返回提示词" : "本次输入的提示词"}</small>
+              <small>{title === "鹈鹕骑行" ? prompt ? "本次接口返回的测试提示词" : "标准固定测试题目 · 本次接口结果未单独返回提示词" : title === "自由创作" ? prompt ? "本次接口返回的创作提示词" : "本次接口结果未单独返回提示词" : "本次输入的提示词"}</small>
             </div>
           ) : detailMode === "screenshot" && hasScreenshot ? (
             <div className="pelican-screenshot-panel" role="tabpanel" id="pelican-panel-work" aria-labelledby="pelican-tab-work">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={screenshotUrl} alt="鹈鹕骑行作品完整浏览器截图" onError={() => setImageFailed(true)} />
+              <img src={screenshotUrl} alt={`${title}作品完整浏览器截图`} onError={() => setImageFailed(true)} />
             </div>
           ) : html && fullWidth > 0 ? (
             <div className="pelican-full-canvas" role="tabpanel" id="pelican-panel-work" aria-labelledby="pelican-tab-work" style={{ height: previewHeight * fullWidth / canvasWidth }}>
@@ -155,7 +155,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
           ) : hasScreenshot ? (
             <div className="pelican-screenshot-panel">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={screenshotUrl} alt="鹈鹕骑行作品完整浏览器截图" onError={() => setImageFailed(true)} />
+              <img src={screenshotUrl} alt={`${title}作品完整浏览器截图`} onError={() => setImageFailed(true)} />
             </div>
           ) : null}
         </div>

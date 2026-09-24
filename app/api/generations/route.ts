@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const model = typeof body.model === "string" ? body.model.trim() : "";
-    const effort = typeof body.reasoningEffort === "string" ? body.reasoningEffort : "medium";
+    const effort = typeof body.reasoningEffort === "string" ? body.reasoningEffort : "low";
     const protocol = body.protocol === "chat_completions" ? "chat_completions" : "responses";
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
 

@@ -38,6 +38,7 @@ function useElementWidth() {
 }
 
 export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑行", svgFormat = false }: Props) {
+  const workTitle = title.endsWith("作品") ? title : `${title}作品`;
   const [imageFailed, setImageFailed] = useState(false);
   const [detailMode, setDetailMode] = useState<DetailMode>("work");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
@@ -105,14 +106,14 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
             <div className="pelican-canvas-wrapper" aria-hidden="true">{renderCanvas(thumbnailWidth, false)}</div>
           ) : hasScreenshot ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={screenshotUrl} alt={`${title}作品预览`} loading="lazy" onError={() => setImageFailed(true)} />
+            <img src={screenshotUrl} alt={`${workTitle}预览`} loading="lazy" onError={() => setImageFailed(true)} />
           ) : null}
-          <button type="button" className="preview-surface-open" onClick={open} aria-label={`查看完整${title}作品`} />
+          <button type="button" className="preview-surface-open" onClick={open} aria-label={`查看完整${workTitle}`} />
         </div>
       ) : (
         <div className="preview-missing"><Braces aria-hidden="true" /><strong>暂无可预览作品</strong></div>
       )}
-      <dialog className="pelican-dialog" ref={dialog} aria-label={`${title}作品完整预览`}>
+      <dialog className="pelican-dialog" ref={dialog} aria-label={`${workTitle}完整预览`}>
         <div className="pelican-dialog-head">
           <strong>{title}</strong>
           <div className="pelican-dialog-actions">
@@ -146,7 +147,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
           ) : detailMode === "screenshot" && hasScreenshot ? (
             <div className="pelican-screenshot-panel" role="tabpanel" id="pelican-panel-work" aria-labelledby="pelican-tab-work">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={screenshotUrl} alt={`${title}作品完整浏览器截图`} onError={() => setImageFailed(true)} />
+              <img src={screenshotUrl} alt={`${workTitle}完整浏览器截图`} onError={() => setImageFailed(true)} />
             </div>
           ) : html && fullWidth > 0 ? (
             <div className="pelican-full-canvas" role="tabpanel" id="pelican-panel-work" aria-labelledby="pelican-tab-work" style={{ height: previewHeight * fullWidth / canvasWidth }}>
@@ -155,7 +156,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
           ) : hasScreenshot ? (
             <div className="pelican-screenshot-panel">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={screenshotUrl} alt={`${title}作品完整浏览器截图`} onError={() => setImageFailed(true)} />
+              <img src={screenshotUrl} alt={`${workTitle}完整浏览器截图`} onError={() => setImageFailed(true)} />
             </div>
           ) : null}
         </div>

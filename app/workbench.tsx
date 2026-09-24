@@ -32,7 +32,8 @@ import { toChineseError } from "@/lib/user-facing-error";
 
 type Benchmark = "reasoning" | "frontend" | "custom";
 const benchmarks: Benchmark[] = ["reasoning", "frontend", "custom"];
-const defaultEffort = (kind: Benchmark) => kind === "frontend" ? "low" : "medium";
+// 糖果保持满血 AI 的中等推理设定；作图（鹈鹕与自定义）默认低推理。
+const defaultEffort = (kind: Benchmark) => kind === "reasoning" ? "medium" : "low";
 const effortLabels: Record<string, string> = { low: "低", medium: "中", high: "高", xhigh: "超高", max: "最大", ultra: "极限" };
 const promptEnding = "请输出可直接运行的完整单文件 HTML，使用内联 SVG、CSS 和 JavaScript 实现，适配手机和电脑，不依赖外部资源。只输出 HTML 代码，不要代码围栏或解释文字。";
 const customPromptPresets = [

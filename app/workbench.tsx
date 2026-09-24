@@ -34,6 +34,15 @@ type Benchmark = "reasoning" | "frontend" | "custom";
 const benchmarks: Benchmark[] = ["reasoning", "frontend", "custom"];
 const defaultEffort = (kind: Benchmark) => kind === "frontend" ? "low" : "medium";
 const effortLabels: Record<string, string> = { low: "低", medium: "中", high: "高", xhigh: "超高", max: "最大", ultra: "极限" };
+const promptEnding = "请输出可直接运行的完整单文件 HTML，使用内联 SVG、CSS 和 JavaScript 实现，适配手机和电脑，不依赖外部资源。只输出 HTML 代码，不要代码围栏或解释文字。";
+const customPromptPresets = [
+  { name: "海底世界", prompt: `制作一个会动的海底世界：鱼群游动、水母漂浮、气泡上升，点击画面时鱼群会聚向点击位置。画面要有清晰的前后层次和自然的循环动画。${promptEnding}` },
+  { name: "太阳系", prompt: `制作一个可交互的太阳系：太阳和行星清晰可辨，行星沿轨道运行，点击行星可以查看名称和简短介绍；提供暂停和继续按钮。${promptEnding}` },
+  { name: "天气卡片", prompt: `制作一组可切换的天气卡片，分别展示晴天、雨天和雪天。每种天气都有不同的持续动画，点击按钮切换场景时应平滑过渡。${promptEnding}` },
+  { name: "粒子烟花", prompt: `制作一个夜空烟花互动页面，用户点击画面的任意位置，就在该处绽放不同颜色的粒子烟花；粒子逐渐消散，连续点击可以同时展示多组烟花。${promptEnding}` },
+  { name: "贪吃蛇", prompt: `制作一个可以玩的贪吃蛇小游戏，包含计分、暂停和重新开始；电脑支持方向键，手机支持屏幕上的方向按钮或滑动操作，游戏结束后能再次开始。${promptEnding}` },
+  { name: "机械时钟", prompt: `制作一款实时运行的机械时钟，时针、分针和秒针应按当前时间准确移动；点击按钮可以切换昼夜主题，表盘与齿轮具有细腻的动画。${promptEnding}` },
+] as const;
 type RunState = "idle" | "submitting" | "polling" | "success" | "error";
 type JsonRecord = Record<string, unknown>;
 type TestRun = {
@@ -791,6 +800,16 @@ export function BanbanWorkbench() {
             )}
             {benchmark === "custom" && (
               <div className="field field-wide">
+                <Label htmlFor="custom-prompt-preset">预设提示词</Label>
+                <NativeSelect
+                  id="custom-prompt-preset"
+                  className="model-select custom-prompt-preset"
+                  value={customPromptPresets.find((preset) => preset.prompt === customPrompt)?.name ?? ""}
+                  onChange={(event) => setCustomPrompt(customPromptPresets.find((preset) => preset.name === event.target.value)?.prompt ?? "")}
+                >
+                  <NativeSelectOption value="">自己输入</NativeSelectOption>
+                  {customPromptPresets.map((preset) => <NativeSelectOption key={preset.name} value={preset.name}>{preset.name}</NativeSelectOption>)}
+                </NativeSelect>
                 <Label htmlFor="custom-prompt">生成提示词</Label>
                 <textarea
                   id="custom-prompt"

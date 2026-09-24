@@ -95,27 +95,52 @@ export async function POST(request: Request) {
           visitorCookie = /^gallery_visitor=([A-Za-z0-9_-]{8,128})(?:;|$)/.exec(config.headers.get("set-cookie") ?? "")?.[1] ?? "";
           if (!config.ok || !visitorCookie) throw new Error("自由创作会话建立失败，请稍后重试");
         }
-        const response = await fetch(service.url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            ...service.headers,
-            ...(visitorCookie ? { Cookie: `gallery_visitor=${visitorCookie}` } : {}),
-          },
-          body: JSON.stringify({
-            benchmark,
-            base_url: baseUrl,
-            api_key: apiKey,
-            model,
-            reasoning_effort: effort,
-            ...(benchmark === "pelican" ? { protocol: freeCreation ? "responses" : protocol } : {}),
-            ...(visitorCookie ? { public: false, random_scene: true } : {}),
-          }),
-          cache: "no-store",
-          redirect: "manual",
-          signal: AbortSignal.timeout(20_000),
+        const requestBody = JSON.stringify({
+          benchmark,
+          base_url: baseUrl,
+          api_key: apiKey,
+          model,
+          reasoning_effort: effort,
+          ...(benchmark === "pelican" ? { protocol: freeCreation ? "responses" : protocol } : {}),
+          ...(visitorCookie ? { public: false, random_scene: true } : {}),
         });
+        // 满血 AI 的公开接口支持同 IP、同请求体使用 Idempotency-Key 去重。
+        // 创建请求遇到短暂拥堵时，可安全重试一次；不要对已开始生成的任务重新提交。
+        let response: Response | undefined;
+        for (let attempt = 0; attempt < (service.source === "manxue" ? 2 : 1); attempt++) {
+          try {
+            response = await fetch(service.url, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                ...service.headers,
+                ...(service.source === "manxue" ? { "Idempotency-Key": submissionId } : {}),
+                ...(visitorCookie ? { Cookie: `gallery_visitor=${visitorCookie}` } : {}),
+              },
+              body: requestBody,
+              cache: "no-store",
+              redirect: "manual",
+              signal: AbortSignal.timeout(20_000),
+            });
+          } catch (error) {
+            if (attempt === 0 && service.source === "manxue" && error instanceof Error
+              && ["TimeoutError", "TypeError"].includes(error.name)) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+              continue;
+            }
+            throw error;
+          }
+          if (attempt === 0 && service.source === "manxue" && [429, 503].includes(response.status)) {
+            const retryAfter = Number(response.headers.get("retry-after"));
+            // 本站的任务创建等待上限是 60 秒，较长的限流需让用户稍后再试。
+            if (!Number.isFinite(retryAfter) || retryAfter < 0 || retryAfter > 8) break;
+            await new Promise((resolve) => setTimeout(resolve, Math.max(1500, retryAfter * 1000)));
+            continue;
+          }
+          break;
+        }
+        if (!response) throw new Error("检测服务响应超时，请稍后重试");
 
         const payload = await response.json().catch(() => ({ error: "检测服务返回了无效响应" }));
         const localized = localizeErrorPayload(payload, "检测任务创建失败，请稍后重试", response.status, "test");

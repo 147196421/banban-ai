@@ -560,6 +560,7 @@ footer p { margin: 0; }
   .spin, .result-state-running i { animation: none !important; }
 }
 .custom-prompt-input { width: 100%; resize: vertical; min-height: 140px; padding: 14px 16px; border: 1px solid #cbd8d4; border-radius: 12px; background: #fff; color: #203530; font: inherit; font-size: 16px; line-height: 1.6; }
+.custom-prompt-preset { margin-bottom: 10px; }
 .free-creation-option { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 12px; border: 1px solid #d6e2df; border-radius: 12px; background: #f8fbfa; cursor: pointer; }
 .free-creation-option:focus-within { outline: 2px solid #297464; outline-offset: 2px; }
 .free-creation-option input { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; accent-color: #297464; }

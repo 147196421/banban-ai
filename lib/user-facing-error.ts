@@ -12,6 +12,13 @@ function extractMessage(value: unknown): string {
   return "";
 }
 
+function extractCode(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  if (typeof record.code === "string") return record.code;
+  return extractCode(record.error);
+}
+
 export function toChineseError(
   value: unknown,
   fallback = "操作失败，请稍后重试",
@@ -21,6 +28,11 @@ export function toChineseError(
   const message = extractMessage(value);
   const text = message.toLowerCase();
 
+  // 旧版本把所有 404 都记成“没有这个模型”；历史任务已丢失原始错误，无法追溯原因。
+  if (message === "接口中没有这个模型，请重新读取模型列表后再选择") {
+    return "这条历史记录没有保存具体的接口错误；请重新生成以查看新的提示";
+  }
+
   if (status === 401 || /(unauthori[sz]ed|authentication|incorrect api key|invalid api key|invalid.*token|api key.*invalid)/i.test(text)) {
     return "API Key 无效或已失效，请检查后重新填写";
   }
@@ -28,8 +40,17 @@ export function toChineseError(
     if (/(model|模型)/i.test(text)) return "这个 API Key 没有该模型的使用权限，请换一个模型";
     return "这个 API Key 没有访问权限，请检查账户或密钥权限";
   }
-  if (status === 404 || /(model.*not found|no such model|does not exist|unknown model)/i.test(text)) {
-    return context === "poll" ? "没有找到这次检测任务，请重新发起检测" : "接口中没有这个模型，请重新读取模型列表后再选择";
+  if (context === "poll" && status === 404) {
+    return "没有找到这次检测任务，请重新发起检测";
+  }
+  if (/(model.{0,100}not found|no such model|unknown model|model.{0,100}does not exist)/i.test(text)
+    || /^(model_not_found|unknown_model)$/i.test(extractCode(value))) {
+    return "当前请求无法使用所选模型，请检查请求协议或稍后重试";
+  }
+  if (status === 404) {
+    return context === "models"
+      ? "模型列表地址不存在，请检查接口地址"
+      : "接口返回 404，请检查接口地址或切换请求协议后重试";
   }
   if (status === 429 || /(rate.limit|too many requests|requests too quickly)/i.test(text)) {
     return "请求过于频繁，请稍等一会儿再试";
@@ -41,13 +62,13 @@ export function toChineseError(
     return "这个 API Key 没有该模型的使用权限，请换一个模型";
   }
   if (/(reasoning.*effort|unsupported.*effort|invalid.*effort|unsupported value)/i.test(text)) {
-    return "当前模型不支持所选推理程度，请换一个等级后重试";
+    return "当前模型不支持此请求的推理设置，请尝试切换请求协议或模型";
   }
   if (/(context.length|maximum context|too many tokens|token limit)/i.test(text)) {
     return "模型请求内容超过限制，请换一个模型或稍后重试";
   }
   if ([504, 522, 524].includes(status ?? 0) || /\b(?:http\s*)?(?:504|522|524)\b/i.test(text)) {
-    return "模型服务等待超时，请稍后重试或降低推理程度";
+    return "模型服务等待超时，请稍后重试";
   }
   if (/(timeout|timed out|aborterror|time.?out)/i.test(text)) {
     return context === "poll" ? "查询检测结果超时，请稍后重试" : "接口响应超时，请稍后重试";

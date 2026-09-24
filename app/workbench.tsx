@@ -176,7 +176,7 @@ function describeResult(run: TestRun, benchmark: Benchmark) {
   } else if (runState === "error") {
     label = benchmark === "custom" ? "生成失败" : "检测失败";
     tone = "error";
-    summary = runError || "请稍后重试。";
+    summary = runError ? toChineseError(runError, "请稍后重试。", undefined, "test") : "请稍后重试。";
   } else if (benchmark === "custom" && task) {
     label = "生成完成";
     tone = "pass";

@@ -13,7 +13,18 @@ type Props = {
   prompt?: string;
   screenshotUrl?: string;
   title?: string;
+  svgFormat?: boolean;
 };
+
+function svgAspectRatio(html: string) {
+  const tag = html.match(/<svg\b[^>]*>/i)?.[0] ?? "";
+  const viewBox = /\bviewBox\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
+  const numbers = viewBox?.trim().split(/[\s,]+/).map(Number);
+  const width = numbers?.length === 4 ? numbers[2] : Number(/\bwidth\s*=\s*["']([\d.]+)(?:px)?["']/i.exec(tag)?.[1]);
+  const height = numbers?.length === 4 ? numbers[3] : Number(/\bheight\s*=\s*["']([\d.]+)(?:px)?["']/i.exec(tag)?.[1]);
+  const ratio = width / height;
+  return Number.isFinite(ratio) && ratio >= 0.25 && ratio <= 5 ? ratio : canvasWidth / canvasHeight;
+}
 
 function useElementWidth() {
   const [width, setWidth] = useState(0);
@@ -26,7 +37,7 @@ function useElementWidth() {
   return [measure, width] as const;
 }
 
-export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑行" }: Props) {
+export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑行", svgFormat = false }: Props) {
   const [imageFailed, setImageFailed] = useState(false);
   const [detailMode, setDetailMode] = useState<DetailMode>("work");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
@@ -34,6 +45,12 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
   const [thumbnailRef, thumbnailWidth] = useElementWidth();
   const [fullRef, fullWidth] = useElementWidth();
   const hasScreenshot = Boolean(screenshotUrl && !imageFailed);
+  const previewHeight = svgFormat ? Math.round(canvasWidth / svgAspectRatio(html)) : canvasHeight;
+  const previewHtml = svgFormat ? html.replace(/<\/body>/i,
+    '<style>html,body{display:block!important;width:100%;height:100%;min-height:0;overflow:hidden}body>svg{display:block;width:100%!important;height:100%!important;max-width:none!important}</style></body>') : html;
+  const svgStart = html.search(/<svg\b/i);
+  const svgEnd = html.toLowerCase().lastIndexOf("</svg>");
+  const sourceCode = svgFormat && svgStart >= 0 && svgEnd > svgStart ? html.slice(svgStart, svgEnd + 6) : html;
 
   useEffect(() => {
     // 历史记录切换后重试新结果对应的截图。
@@ -44,9 +61,9 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
   const renderCanvas = (width: number, interactive: boolean) => (
     <iframe
       className="pelican-canvas"
-      style={{ transform: `scale(${width / canvasWidth})` }}
+      style={{ width: canvasWidth, height: previewHeight, transform: `scale(${width / canvasWidth})` }}
       title={interactive ? `${title}完整预览` : `${title}缩略预览`}
-      srcDoc={html}
+      srcDoc={previewHtml}
       sandbox="allow-scripts"
       referrerPolicy="no-referrer"
       tabIndex={interactive ? 0 : -1}
@@ -65,7 +82,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
 
   const copyCode = async () => {
     try {
-      await navigator.clipboard.writeText(html);
+      await navigator.clipboard.writeText(sourceCode);
       setCopyStatus("copied");
     } catch {
       setCopyStatus("error");
@@ -83,7 +100,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
         </button>
       </div>
       {html || hasScreenshot ? (
-        <div className="preview-surface" ref={thumbnailRef}>
+        <div className="preview-surface" ref={thumbnailRef} style={{ aspectRatio: `${canvasWidth} / ${previewHeight}` }}>
           {html && thumbnailWidth > 0 ? (
             <div className="pelican-canvas-wrapper" aria-hidden="true">{renderCanvas(thumbnailWidth, false)}</div>
           ) : hasScreenshot ? (
@@ -118,12 +135,12 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
         <div className="pelican-dialog-body" data-view={detailMode} ref={fullRef}>
           {detailMode === "code" && html ? (
             <div className="pelican-source" role="tabpanel" id="pelican-panel-code" aria-labelledby="pelican-tab-code">
-              <p>本次模型返回的完整 HTML，与作品预览使用同一份内容。</p>
-              <pre><code>{html}</code></pre>
+              <p>{svgFormat ? "本次模型生成的 SVG，作品预览使用了同一份内容。" : "本次模型返回的完整 HTML，与作品预览使用同一份内容。"}</p>
+              <pre><code>{sourceCode}</code></pre>
             </div>
           ) : detailMode === "prompt" && html ? (
             <div className="pelican-prompt" role="tabpanel" id="pelican-panel-prompt" aria-labelledby="pelican-tab-prompt">
-              <p>{prompt || fixedPromptSummary}</p>
+              <p>{prompt || (title === "鹈鹕骑行" ? fixedPromptSummary : "本次未保存提示词")}</p>
               <small>{title === "鹈鹕骑行" ? prompt ? "本次接口返回的测试提示词" : "标准固定测试题目 · 本次接口结果未单独返回提示词" : "本次输入的提示词"}</small>
             </div>
           ) : detailMode === "screenshot" && hasScreenshot ? (
@@ -132,7 +149,7 @@ export function PelicanPreview({ html, prompt, screenshotUrl, title = "鹈鹕骑
               <img src={screenshotUrl} alt="鹈鹕骑行作品完整浏览器截图" onError={() => setImageFailed(true)} />
             </div>
           ) : html && fullWidth > 0 ? (
-            <div className="pelican-full-canvas" role="tabpanel" id="pelican-panel-work" aria-labelledby="pelican-tab-work" style={{ height: canvasHeight * fullWidth / canvasWidth }}>
+            <div className="pelican-full-canvas" role="tabpanel" id="pelican-panel-work" aria-labelledby="pelican-tab-work" style={{ height: previewHeight * fullWidth / canvasWidth }}>
               {renderCanvas(fullWidth, true)}
             </div>
           ) : hasScreenshot ? (

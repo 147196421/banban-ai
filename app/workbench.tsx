@@ -809,13 +809,12 @@ export function BanbanWorkbench() {
             <div className="custom-output" aria-busy={runState === "submitting" || runState === "polling"}>
               {selectedHistoryId && <button className="clear-result custom-back" type="button" onClick={clearCurrentResult}><RotateCcw aria-hidden="true" />返回最新</button>}
               {runState === "success" && pelicanHtml && (
-                <iframe
+                <PelicanPreview
                   key={currentRun.taskId}
-                  className="custom-output-frame"
-                  title="自定义生成作品"
-                  srcDoc={pelicanHtml}
-                  sandbox="allow-scripts"
-                  referrerPolicy="no-referrer"
+                  title="自定义作品"
+                  html={pelicanHtml}
+                  prompt={pelicanPrompt}
+                  svgFormat={asRecord(task?.result).format === "svg"}
                 />
               )}
               {runState === "success" && !pelicanHtml && (

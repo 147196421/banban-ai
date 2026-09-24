@@ -568,10 +568,8 @@ footer p { margin: 0; }
 .free-creation-option small { color: #566b66; font-size: 13px; line-height: 1.5; }
 .custom-prompt-input:focus-visible { outline: 2px solid #297464; outline-offset: 2px; }
 .custom-output { min-width: 0; }
-.custom-output-frame { display: block; width: 100%; height: min(72vh, 720px); min-height: 360px; border: 1px solid #dae5e2; border-radius: 16px; background: #fff; }
 .custom-output-text { margin: 0; padding: 20px; border: 1px solid #dae5e2; border-radius: 16px; background: #fff; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; }
 .custom-output-feedback { display: flex; align-items: center; gap: 10px; min-height: 100px; margin: 0; color: #566b66; }
 .custom-output-feedback svg { width: 18px; height: 18px; }
 .custom-output-error { color: #ab4a41; }
 .custom-back { margin-bottom: 16px; }
-@media (max-width: 680px) { .custom-output-frame { height: min(68vh, 560px); min-height: 300px; } }

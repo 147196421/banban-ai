@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     if (!service) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }
-    const effort = typeof body.reasoningEffort === "string" ? body.reasoningEffort : "high";
+    const effort = typeof body.reasoningEffort === "string" ? body.reasoningEffort : benchmark === "candy" ? "medium" : "low";
 
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId)) {
       return Response.json({ error: "检测任务编号无效" }, { status: 400 });
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
             api_key: apiKey,
             model,
             reasoning_effort: effort,
-            ...(benchmark === "pelican" ? { protocol } : {}),
+            ...(benchmark === "pelican" ? { protocol: freeCreation ? "responses" : protocol } : {}),
             ...(visitorCookie ? { public: false, random_scene: true } : {}),
           }),
           cache: "no-store",

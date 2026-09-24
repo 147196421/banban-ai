@@ -32,6 +32,8 @@ import { toChineseError } from "@/lib/user-facing-error";
 
 type Benchmark = "reasoning" | "frontend" | "custom";
 const benchmarks: Benchmark[] = ["reasoning", "frontend", "custom"];
+const defaultEffort = (kind: Benchmark) => kind === "frontend" ? "low" : "medium";
+const effortLabels: Record<string, string> = { low: "低", medium: "中", high: "高", xhigh: "超高", max: "最大", ultra: "极限" };
 type RunState = "idle" | "submitting" | "polling" | "success" | "error";
 type JsonRecord = Record<string, unknown>;
 type TestRun = {
@@ -40,6 +42,8 @@ type TestRun = {
   taskId: string;
   runError: string;
   model: string;
+  requestProtocol?: "responses" | "chat_completions";
+  reasoningEffort?: string;
   startedAt: number;
   finishedAt: number;
 };
@@ -114,6 +118,11 @@ function formatTime(timestamp: number) {
   }).format(timestamp);
 }
 
+function completedAt(task: JsonRecord) {
+  const finished = typeof task.finished_at === "string" ? Date.parse(task.finished_at) : NaN;
+  return Number.isFinite(finished) && finished > 0 && finished <= Date.now() + 60_000 ? finished : Date.now();
+}
+
 function describeResult(run: TestRun, benchmark: Benchmark) {
   const { runState, task, runError } = run;
   const candy = asRecord(task?.candy);
@@ -183,8 +192,8 @@ export function BanbanWorkbench() {
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
   const [manualModel, setManualModel] = useState(false);
-  const [effort, setEffort] = useState("high");
-  const [requestProtocol, setRequestProtocol] = useState<"responses" | "chat_completions">("chat_completions");
+  const [effort, setEffort] = useState(defaultEffort("reasoning"));
+  const [requestProtocol, setRequestProtocol] = useState<"responses" | "chat_completions">("responses");
   const [customPrompt, setCustomPrompt] = useState("");
   const [freeCreation, setFreeCreation] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
@@ -372,7 +381,7 @@ export function BanbanWorkbench() {
 
         const status = String(data.status);
         if (status === "succeeded") {
-          patchRun(kind, { runState: "success", runError: "", task: data, finishedAt: Date.now() });
+          patchRun(kind, { runState: "success", runError: "", task: data, finishedAt: completedAt(data) });
           return;
         }
         if (["failed", "cancelled"].includes(status)) {
@@ -380,7 +389,7 @@ export function BanbanWorkbench() {
             runState: "error",
             runError: toChineseError(data.error, "检测任务未能完成，请重新尝试", undefined, "test"),
             task: data,
-            finishedAt: Date.now(),
+            finishedAt: completedAt(data),
           });
           return;
         }
@@ -448,7 +457,7 @@ export function BanbanWorkbench() {
             runError: ["failed", "cancelled"].includes(status)
               ? toChineseError(task.error, "检测失败", undefined, "test")
               : "",
-            finishedAt: ["succeeded", "failed", "cancelled"].includes(status) ? Date.now() : 0,
+            finishedAt: ["succeeded", "failed", "cancelled"].includes(status) ? completedAt(task) : 0,
           }));
         } catch {
           // 网络恢复后继续查询，不覆盖已有结果。
@@ -572,6 +581,8 @@ export function BanbanWorkbench() {
       taskId: submissionId,
       runError: "",
       model,
+      requestProtocol: kind === "reasoning" || (kind === "frontend" && freeCreation) ? "responses" : requestProtocol,
+      reasoningEffort: effort,
       startedAt,
       finishedAt: 0,
     };
@@ -625,7 +636,8 @@ export function BanbanWorkbench() {
     const next = value as Benchmark;
     setBenchmark(next);
     setSelectedHistoryId("");
-    setEffort("high");
+    setEffort(defaultEffort(next));
+    setRequestProtocol("responses");
   }
 
   const activeStep = runState === "idle" ? -1 : runState === "submitting" || task?.phase === "creating" ? 0 : task?.phase === "classifying" ? 2 : runState === "success" ? 3 : 1;
@@ -757,11 +769,11 @@ export function BanbanWorkbench() {
             {benchmark !== "reasoning" && (
               <div className="field field-wide">
                 <Label htmlFor="request-protocol">请求协议</Label>
-                <NativeSelect id="request-protocol" className="model-select" value={requestProtocol} onChange={(event) => setRequestProtocol(event.target.value as "responses" | "chat_completions")}>
-                  <NativeSelectOption value="chat_completions">Chat Completions</NativeSelectOption>
+                <NativeSelect id="request-protocol" className="model-select" value={requestProtocol} onChange={(event) => setRequestProtocol(event.target.value as "responses" | "chat_completions")} disabled={benchmark === "frontend" && freeCreation}>
                   <NativeSelectOption value="responses">Responses</NativeSelectOption>
+                  <NativeSelectOption value="chat_completions">Chat Completions</NativeSelectOption>
                 </NativeSelect>
-                <p className="field-message">如果检测流未完成或模型接口报错，可切换协议后重试。</p>
+                <p className="field-message">{benchmark === "frontend" && freeCreation ? "自由创作使用 Responses 协议。" : "默认使用 Responses；如接口不支持，可切换协议后重试。"}</p>
               </div>
             )}
             {benchmark === "frontend" && (
@@ -769,7 +781,7 @@ export function BanbanWorkbench() {
                 <label className="free-creation-option" htmlFor="free-creation">
                   <input id="free-creation" type="checkbox" checked={freeCreation} onChange={(event) => {
                     setFreeCreation(event.target.checked);
-                    setRequestProtocol(event.target.checked ? "responses" : "chat_completions");
+                    if (event.target.checked) setRequestProtocol("responses");
                   }} />
                   <span><strong>自由创作</strong><small>随机组合创作素材。</small></span>
                 </label>
@@ -848,6 +860,7 @@ export function BanbanWorkbench() {
             <div className="run-timestamps">
               <span>开始 <time dateTime={new Date(currentRun.startedAt).toISOString()}>{formatTime(currentRun.startedAt)}</time></span>
               {currentRun.finishedAt > 0 && <span>完成 <time dateTime={new Date(currentRun.finishedAt).toISOString()}>{formatTime(currentRun.finishedAt)}</time></span>}
+              {currentRun.requestProtocol && <span>协议 {currentRun.requestProtocol === "responses" ? "Responses" : "Chat Completions"} · 推理 {effortLabels[currentRun.reasoningEffort ?? ""] ?? currentRun.reasoningEffort ?? "—"}</span>}
             </div>
           )}
 
@@ -894,7 +907,8 @@ export function BanbanWorkbench() {
                         onClick={() => {
                           setBenchmark(entry.benchmark);
                           setSelectedHistoryId(entry.taskId);
-                          setEffort("high");
+                          setEffort(defaultEffort(entry.benchmark));
+                          setRequestProtocol("responses");
                           document.getElementById("reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
                         }}
                       >

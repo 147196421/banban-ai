@@ -46,6 +46,9 @@ export function toChineseError(
   if (/(context.length|maximum context|too many tokens|token limit)/i.test(text)) {
     return "模型请求内容超过限制，请换一个模型或稍后重试";
   }
+  if ([504, 522, 524].includes(status ?? 0) || /\b(?:http\s*)?(?:504|522|524)\b/i.test(text)) {
+    return "模型服务等待超时，请稍后重试或降低推理程度";
+  }
   if (/(timeout|timed out|aborterror|time.?out)/i.test(text)) {
     return context === "poll" ? "查询检测结果超时，请稍后重试" : "接口响应超时，请稍后重试";
   }

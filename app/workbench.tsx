@@ -37,8 +37,18 @@ const defaultEffort = (kind: Benchmark) => kind === "reasoning" ? "medium" : "lo
 const effortLabels: Record<string, string> = { low: "低", medium: "中", high: "高", xhigh: "超高", max: "最大", ultra: "极限" };
 const promptEnding = "请输出可直接运行的完整单文件 HTML，使用内联 SVG、CSS 和 JavaScript 实现，适配手机和电脑，不依赖外部资源。只输出 HTML 代码，不要代码围栏或解释文字。";
 const customPromptPresets = [
+  { name: "瓶中沧海", prompt: `用 WebGL（Three.js r160，通过 CDN 引入）创作一个体素微缩场景《瓶中沧海》：一艘多桅帆船在封闭于横卧玻璃瓶内的海洋上航行，输出为可直接在 Chrome 打开的单个 HTML 文件。
+
+瓶与陈设：玻璃瓶身有菲涅尔边缘光与高光，软木塞、红蜡封、颈绳吊牌；瓶子搁在木托架上，置于木桌面，旁有旧书、黄铜望远镜，呈现黄昏房间光氛围。
+
+瓶内海洋：体素浪面在 GPU 上起伏，浪尖泛白沫；水面以下是整体铺满的渐变深水体，没有海床，半透明可透视。水底沉着宝箱（金光）、沉锚、双耳瓶、珊瑚，有气泡上升。珊瑚岛上有红白灯塔（旋转光束）、棕榈、暖窗小屋、码头与小艇、宝藏。
+
+帆船：三桅方帆、红纹主帆和全套索具，绕岛航行；四点浪高采样驱动升沉、纵摇、横摇，带船艏飞沫与尾迹。空中有六只海鸥盘旋，积云在鸟与桅杆之上，鲸鱼周期性跃身出水，浮标、鱼群、螃蟹点缀。所有瓶内元素严格封闭在瓶内，任何视角都不得越出瓶身轮廓。
+
+交互：拖动环视，闲置后自动恢复旋转，滚轮缩放；按住 Space 掀起风暴，浪涌飞沫、瓶体在托架上摇晃但瓶内水面保持水平，同时出现闪电与乌云。触屏设备提供单指环视、双指缩放和按住风暴按钮。延时摄影倍速按钮（x4／x12／x1／暂停）驱动昼夜流转：太阳与月亮移动、黎明／正午／黄昏／子夜四段天色、子夜星空，夜晚灯火热光更浓。
+
+技术：用 InstancedMesh 批量渲染体素，用自定义 shader 实现玻璃与水面顶点位移，目标 60 FPS。使用 type="module" 从 https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js 引入 Three.js r160；除这一个 CDN 模块外，将样式、脚本、几何、材质和交互写在同一个 HTML 文件内，不使用外部模型或贴图。直接输出完整 HTML 源码，不要 Markdown 代码围栏或解释文字。` },
   // 截图中省略号后面的原文不可见；以下保留可见要求，并补全为可直接生成的提示词。
-  { name: "鹈鹕骑自行车", prompt: `创建一个 HTML，内容是用 SVG 绘制一个鹈鹕骑自行车的 2D 动画。你不需要任何测试。${promptEnding}` },
   { name: "北极熊骑自行车", prompt: `创建一个 HTML，用 SVG 绘制一只北极熊骑自行车的 2D 动画：北极熊体型圆润、白色毛发、黑鼻子，坐在一辆两轮自行车上，双腿随踏板做圆周蹬踏，车轮持续转动并带辐条，背景是雪地与远处的冰山，雪花缓缓飘落。所有动画持续循环，画面完整清晰。${promptEnding}` },
   { name: "奥特曼骑摩托车", prompt: `创建一个 HTML，用 SVG 绘制奥特曼骑摩托车的 2D 动画：奥特曼为银红配色、头顶有鳍状冠、胸口有闪烁的计时器，跨坐在一辆流线型摩托车上向右疾驰，车轮高速旋转、尾部拖出速度线，背景是横向滚动的城市楼群，天空与地面形成分层运动。人物、车辆和背景协调循环运动。${promptEnding}` },
   { name: "章鱼打架子鼓", prompt: `创建一个 HTML，用 SVG 绘制一只章鱼打架子鼓的 2D 动画：章鱼有 8 条可辨的触手，分别握着鼓棒，同时敲击底鼓、军鼓、镲片等至少 5 件鼓组部件。敲击节奏要稳定循环，被击中的部件有震动或闪光反馈，章鱼头部和触手随节拍自然摆动。${promptEnding}` },
@@ -50,17 +60,10 @@ const customPromptPresets = [
   { name: "齿轮传动机构", prompt: `创建一个 HTML，用 SVG 绘制一组相互啮合的齿轮传动动画：至少 4 个齿轮，齿数分别为 12、24、36、18，齿形要真实可辨，相邻齿轮的齿必须正确啮合而不重叠或穿透，转速与齿数成反比，转向相邻相反。用不同颜色区分齿轮并标注齿数，动画持续循环。${promptEnding}` },
   { name: "城市夜景视差滚动", prompt: `创建一个 HTML，用 SVG 绘制一幅横向无限滚动的城市夜景：至少三层视差（远景山脉与月亮、中景楼群、近景马路），层速由远到近递增；楼窗随机点亮熄灭，马路上有汽车逐辆行驶并带车灯，天空偶尔划过流星。画面循环时无明显跳帧或空白。${promptEnding}` },
   { name: "汉字笔顺书写动画", prompt: `创建一个 HTML，用 SVG 路径动画演示汉字「永」的书写过程：按正确笔顺逐笔书写，共 5 笔（点、横折钩、横撇、撇、捺），每一笔用 stroke-dashoffset 动画呈现毛笔运笔效果，笔画粗细有提按变化，写完一笔再写下一笔。提供重播按钮与当前笔画提示。${promptEnding}` },
-  { name: "糖果题", prompt: `在一个黑色的袋子里放有三种口味的糖果，每种糖果有两种不同的形状（圆形和五角星形，不同的形状靠手感可以分辨）。现已知不同口味的糖和不同形状的数量统计如下表。参赛者需要在活动前决定摸出的糖果数目，那么，最少取出多少个糖果才能保证手中同时拥有不同形状的苹果味和桃子味的糖？（同时手中有圆形苹果味匹配五角星桃子味糖果，或者有圆形桃子味匹配五角星苹果味糖果都满足要求）
-
-| 形状 / 口味 | 苹果味 | 桃子味 | 西瓜味 |
-| 圆形 | 7 | 9 | 8 |
-| 五角星形 | 7 | 6 | 4 |` },
   { name: "海底世界", prompt: `制作一个会动的海底世界：鱼群游动、水母漂浮、气泡上升，点击画面时鱼群会聚向点击位置。画面要有清晰的前后层次和自然的循环动画。${promptEnding}` },
-  { name: "太阳系", prompt: `制作一个可交互的太阳系：太阳和行星清晰可辨，行星沿轨道运行，点击行星可以查看名称和简短介绍；提供暂停和继续按钮。${promptEnding}` },
   { name: "天气卡片", prompt: `制作一组可切换的天气卡片，分别展示晴天、雨天和雪天。每种天气都有不同的持续动画，点击按钮切换场景时应平滑过渡。${promptEnding}` },
   { name: "粒子烟花", prompt: `制作一个夜空烟花互动页面，用户点击画面的任意位置，就在该处绽放不同颜色的粒子烟花；粒子逐渐消散，连续点击可以同时展示多组烟花。${promptEnding}` },
   { name: "贪吃蛇", prompt: `制作一个可以玩的贪吃蛇小游戏，包含计分、暂停和重新开始；电脑支持方向键，手机支持屏幕上的方向按钮或滑动操作，游戏结束后能再次开始。${promptEnding}` },
-  { name: "机械时钟", prompt: `制作一款实时运行的机械时钟，时针、分针和秒针应按当前时间准确移动；点击按钮可以切换昼夜主题，表盘与齿轮具有细腻的动画。${promptEnding}` },
 ] as const;
 type RunState = "idle" | "submitting" | "polling" | "success" | "error";
 type JsonRecord = Record<string, unknown>;
@@ -70,6 +73,7 @@ type TestRun = {
   taskId: string;
   runError: string;
   model: string;
+  inputPrompt?: string;
   freeCreation?: boolean;
   requestProtocol?: "responses" | "chat_completions";
   reasoningEffort?: string;
@@ -610,6 +614,7 @@ export function BanbanWorkbench() {
       taskId: submissionId,
       runError: "",
       model,
+      ...(kind === "custom" ? { inputPrompt: customPrompt.trim() } : {}),
       ...(kind === "frontend" ? { freeCreation } : {}),
       requestProtocol: kind === "reasoning" || (kind === "frontend" && freeCreation) ? "responses" : requestProtocol,
       reasoningEffort: effort,
@@ -671,7 +676,17 @@ export function BanbanWorkbench() {
 
   const activeStep = runState === "idle" ? -1 : runState === "submitting" || task?.phase === "creating" ? 0 : task?.phase === "classifying" ? 2 : runState === "success" ? 3 : 1;
   const hasFinishedRun = ["success", "error"].includes(runState);
-  const latestRunState = runs[benchmark].runState;
+  const latestRun = runs[benchmark];
+  const latestRunState = latestRun.runState;
+  const isRunningLatest = ["submitting", "polling"].includes(latestRunState);
+  const requestedProtocol = benchmark === "reasoning" || (benchmark === "frontend" && freeCreation) ? "responses" : requestProtocol;
+  const lastPrompt = latestRun.inputPrompt ?? asRecord(latestRun.task?.result).prompt;
+  const matchesLatestInput = Boolean(latestRun.taskId)
+    && latestRun.model === selectedModel.trim()
+    && (!latestRun.requestProtocol || latestRun.requestProtocol === requestedProtocol)
+    && (benchmark !== "frontend" || Boolean(latestRun.freeCreation) === freeCreation)
+    && (benchmark !== "custom" || lastPrompt === customPrompt.trim());
+  const isRepeat = !isRunningLatest && matchesLatestInput && ["success", "error"].includes(latestRunState);
   const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : benchmark === "custom" && !customPrompt.trim() ? "输入提示词" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : benchmark === "custom" ? "生成时间取决于作品长度" : "约 1–5 分钟";
   return (
     <main id="main-content" className="min-h-screen bg-background text-foreground">
@@ -834,10 +849,10 @@ export function BanbanWorkbench() {
           <div className="start-row">
             <span id="action-hint">{actionHint}</span>
             <Button className="start-button" size="lg" disabled={!ready} onClick={startTest} aria-describedby="action-hint">
-              {["submitting", "polling"].includes(latestRunState) ? benchmark === "custom" ? "正在生成" : "正在检测" : ["success", "error"].includes(latestRunState) ? benchmark === "custom" ? "重新生成" : "重新检测" : benchmark === "custom" ? "开始生成" : "开始检测"}
-              {["submitting", "polling"].includes(latestRunState)
+              {isRunningLatest ? benchmark === "custom" ? "正在生成" : "正在检测" : isRepeat ? benchmark === "custom" ? "重新生成" : "重新检测" : benchmark === "custom" ? "开始生成" : "开始检测"}
+              {isRunningLatest
                 ? <LoaderCircle className="spin" aria-hidden="true" />
-                : ["success", "error"].includes(latestRunState)
+                : isRepeat
                   ? <RotateCcw aria-hidden="true" />
                   : <ArrowUpRight aria-hidden="true" />}
             </Button>
@@ -867,7 +882,7 @@ export function BanbanWorkbench() {
             </div>
           ) : <>
           <div className="result-topline">
-            <div><span className="section-kicker">{selectedHistoryId ? "历史结果" : "结果"}</span><h2>{currentRun.model || selectedModel || "尚未选择模型"}</h2></div>
+            <div><span className="section-kicker">{selectedHistoryId ? "历史结果" : "结果"}{benchmark === "frontend" && currentRun.taskId ? ` · ${currentRun.freeCreation ? "自由创作" : "鹈鹕骑行"}` : ""}</span><h2>{currentRun.model || selectedModel || "尚未选择模型"}</h2></div>
             <div className="result-actions">
               {(hasFinishedRun || selectedHistoryId) && (
                 <button className="clear-result" type="button" onClick={clearCurrentResult}>

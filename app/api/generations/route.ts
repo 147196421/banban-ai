@@ -96,6 +96,7 @@ export async function POST(request: Request) {
         const { html, format } = extractRenderableDocument(output);
         await finishStoredTask(id, "succeeded", {
           id, status: "succeeded", benchmark: "custom", evaluation_source: "direct-model",
+          finished_at: new Date().toISOString(),
           result: {
             html, format, text: html ? "" : output.slice(0, 500_000), prompt,
             duration_ms: Date.now() - started,

@@ -701,6 +701,20 @@ export function BanbanWorkbench() {
     && (benchmark !== "custom" || lastPrompt === customPrompt.trim());
   const isRepeat = !isRunningLatest && matchesLatestInput && ["success", "error"].includes(latestRunState);
   const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : benchmark === "custom" && !customPrompt.trim() ? "输入提示词" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : benchmark === "custom" ? "生成时间取决于作品长度" : "约 1–5 分钟";
+  const runTimestamps = currentRun.startedAt > 0 && (
+    <div className="run-timestamps">
+      <span>开始 <time dateTime={new Date(currentRun.startedAt).toISOString()}>{formatTime(currentRun.startedAt)}</time></span>
+      {currentRun.finishedAt > 0 && <span>完成 <time dateTime={new Date(currentRun.finishedAt).toISOString()}>{formatTime(currentRun.finishedAt)}</time></span>}
+      {currentRun.requestProtocol && <span>协议 {currentRun.requestProtocol === "responses" ? "Responses" : "Chat Completions"} · 推理 {effortLabels[currentRun.reasoningEffort ?? ""] ?? currentRun.reasoningEffort ?? "—"}</span>}
+    </div>
+  );
+  const usageMetrics = (
+    <div className="metric-row">
+      <div><span><Clock3 aria-hidden="true" />响应耗时</span><strong>{result.duration ? `${(result.duration / 1000).toFixed(1)} s` : "—"}</strong></div>
+      <div><span><Activity aria-hidden="true" />输入 Token</span><strong>{result.inputTokens ? result.inputTokens.toLocaleString() : "—"}</strong></div>
+      <div><span><Braces aria-hidden="true" />输出 Token</span><strong>{result.outputTokens ? result.outputTokens.toLocaleString() : "—"}</strong></div>
+    </div>
+  );
   return (
     <main id="main-content" className="min-h-screen bg-background text-foreground">
       <a className="skip-link" href="#workbench">跳到检测表单</a>
@@ -883,6 +897,7 @@ export function BanbanWorkbench() {
           {benchmark === "custom" ? (
             <div className="custom-output" aria-busy={runState === "submitting" || runState === "polling"}>
               {selectedHistoryId && <button className="clear-result custom-back" type="button" onClick={clearCurrentResult}><RotateCcw aria-hidden="true" />返回最新</button>}
+              {runTimestamps}
               {runState === "success" && pelicanHtml && (
                 <PelicanPreview
                   key={currentRun.taskId}
@@ -895,6 +910,7 @@ export function BanbanWorkbench() {
               {runState === "success" && !pelicanHtml && (
                 <pre className="custom-output-text">{String(asRecord(task?.result).text ?? "")}</pre>
               )}
+              {runState === "success" && usageMetrics}
               {(runState === "submitting" || runState === "polling") && (
                 <p className="custom-output-feedback" role="status"><LoaderCircle className="spin" aria-hidden="true" />正在生成…</p>
               )}
@@ -919,13 +935,7 @@ export function BanbanWorkbench() {
             {result.summary && <p>{result.tone === "error" && <AlertTriangle aria-hidden="true" />}{result.summary}</p>}
           </div>
 
-          {currentRun.startedAt > 0 && (
-            <div className="run-timestamps">
-              <span>开始 <time dateTime={new Date(currentRun.startedAt).toISOString()}>{formatTime(currentRun.startedAt)}</time></span>
-              {currentRun.finishedAt > 0 && <span>完成 <time dateTime={new Date(currentRun.finishedAt).toISOString()}>{formatTime(currentRun.finishedAt)}</time></span>}
-              {currentRun.requestProtocol && <span>协议 {currentRun.requestProtocol === "responses" ? "Responses" : "Chat Completions"} · 推理 {effortLabels[currentRun.reasoningEffort ?? ""] ?? currentRun.reasoningEffort ?? "—"}</span>}
-            </div>
-          )}
+          {runTimestamps}
 
           {benchmark === "frontend" && runState === "success" && pelicanHtml && (
             <PelicanPreview
@@ -937,11 +947,7 @@ export function BanbanWorkbench() {
             />
           )}
 
-          <div className="metric-row">
-            <div><span><Clock3 aria-hidden="true" />响应耗时</span><strong>{result.duration ? `${(result.duration / 1000).toFixed(1)} s` : "—"}</strong></div>
-            <div><span><Activity aria-hidden="true" />输入 Token</span><strong>{result.inputTokens ? result.inputTokens.toLocaleString() : "—"}</strong></div>
-            <div><span><Braces aria-hidden="true" />输出 Token</span><strong>{result.outputTokens ? result.outputTokens.toLocaleString() : "—"}</strong></div>
-          </div>
+          {usageMetrics}
 
           {["submitting", "polling"].includes(runState) && <ol className="run-steps">
             {steps.map((step, index) => {

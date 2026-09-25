@@ -37,6 +37,12 @@ const defaultEffort = (kind: Benchmark) => kind === "reasoning" ? "medium" : "lo
 const effortLabels: Record<string, string> = { low: "低", medium: "中", high: "高", xhigh: "超高", max: "最大", ultra: "极限" };
 const promptEnding = "请输出可直接运行的完整单文件 HTML，使用内联 SVG、CSS 和 JavaScript 实现，适配手机和电脑，不依赖外部资源。只输出 HTML 代码，不要代码围栏或解释文字。";
 const customPromptPresets = [
+  { name: "海底世界", prompt: `制作一个会动的海底世界：鱼群游动、水母漂浮、气泡上升，点击画面时鱼群会聚向点击位置。画面要有清晰的前后层次和自然的循环动画。${promptEnding}` },
+  { name: "太阳系 1", prompt: `制作一个可交互的太阳系：太阳和行星清晰可辨，行星沿轨道运行，点击行星可以查看名称和简短介绍；提供暂停和继续按钮。${promptEnding}` },
+  { name: "天气卡片", prompt: `制作一组可切换的天气卡片，分别展示晴天、雨天和雪天。每种天气都有不同的持续动画，点击按钮切换场景时应平滑过渡。${promptEnding}` },
+  { name: "粒子烟花", prompt: `制作一个夜空烟花互动页面，用户点击画面的任意位置，就在该处绽放不同颜色的粒子烟花；粒子逐渐消散，连续点击可以同时展示多组烟花。${promptEnding}` },
+  { name: "贪吃蛇", prompt: `制作一个可以玩的贪吃蛇小游戏，包含计分、暂停和重新开始；电脑支持方向键，手机支持屏幕上的方向按钮或滑动操作，游戏结束后能再次开始。${promptEnding}` },
+  { name: "机械时钟 1", prompt: `制作一款实时运行的机械时钟，时针、分针和秒针应按当前时间准确移动；点击按钮可以切换昼夜主题，表盘与齿轮具有细腻的动画。${promptEnding}` },
   { name: "瓶中沧海", prompt: `用 WebGL（Three.js r160，通过 CDN 引入）创作一个体素微缩场景《瓶中沧海》：一艘多桅帆船在封闭于横卧玻璃瓶内的海洋上航行，输出为可直接在 Chrome 打开的单个 HTML 文件。
 
 瓶与陈设：玻璃瓶身有菲涅尔边缘光与高光，软木塞、红蜡封、颈绳吊牌；瓶子搁在木托架上，置于木桌面，旁有旧书、黄铜望远镜，呈现黄昏房间光氛围。
@@ -54,16 +60,12 @@ const customPromptPresets = [
   { name: "章鱼打架子鼓", prompt: `创建一个 HTML，用 SVG 绘制一只章鱼打架子鼓的 2D 动画：章鱼有 8 条可辨的触手，分别握着鼓棒，同时敲击底鼓、军鼓、镲片等至少 5 件鼓组部件。敲击节奏要稳定循环，被击中的部件有震动或闪光反馈，章鱼头部和触手随节拍自然摆动。${promptEnding}` },
   { name: "长颈鹿踩滑板", prompt: `创建一个 HTML，用 SVG 绘制一只长颈鹿踩滑板的 2D 动画：长颈鹿脖子明显修长、带棕色斑块，四蹄站在一块滑板上从左向右滑行，滑板轮子转动，途中遇到一个小坡道时做起跳与落地动作，脖子随动作前后摆动，背景向左移动以体现速度。动画流畅循环。${promptEnding}` },
   { name: "宇航猫月球钓鱼", prompt: `创建一个 HTML，用 SVG 绘制一只穿宇航服的猫在月球上钓鱼的 2D 动画：猫戴着透明头盔、尾巴从宇航服后面伸出，坐在月面环形山边缘，鱼竿伸向一片漂浮的星星湖，钓线末端不时钓起一颗闪光的星星，背景是深黑太空、地球与远处的星光。钓鱼动作和星光动画自然循环。${promptEnding}` },
-  { name: "模拟时钟 · 实时走针", prompt: `创建一个 HTML，用 SVG 绘制一个模拟时钟：有表盘刻度、时针、分针、秒针，读取浏览器本地时间实时走针，秒针平滑扫动，时针随分钟联动偏移。表盘下方用数字显示当前时间，所有样式与脚本内联，不引用外部资源。${promptEnding}` },
-  { name: "太阳系轨道动画", prompt: `创建一个 HTML，用 SVG 绘制太阳系动画：太阳居中，至少包含水星、金星、地球、火星、木星、土星六颗行星沿各自轨道公转，公转周期按真实比例缩放（地球 1 圈时水星约 4 圈、土星约 1/29 圈），行星大小与轨道距离为展示效果适当调整。地球带一颗绕转的月亮，行星标注名称，动画流畅可辨。${promptEnding}` },
+  { name: "机械时钟 2 · 实时走针", prompt: `创建一个 HTML，用 SVG 绘制一个模拟时钟：有表盘刻度、时针、分针、秒针，读取浏览器本地时间实时走针，秒针平滑扫动，时针随分钟联动偏移。表盘下方用数字显示当前时间，所有样式与脚本内联，不引用外部资源。${promptEnding}` },
+  { name: "太阳系 2 · 轨道动画", prompt: `创建一个 HTML，用 SVG 绘制太阳系动画：太阳居中，至少包含水星、金星、地球、火星、木星、土星六颗行星沿各自轨道公转，公转周期按真实比例缩放（地球 1 圈时水星约 4 圈、土星约 1/29 圈），行星大小与轨道距离为展示效果适当调整。地球带一颗绕转的月亮，行星标注名称，动画流畅可辨。${promptEnding}` },
   { name: "弹跳小球物理模拟", prompt: `创建一个 HTML，用 Canvas 或 SVG 实现弹跳小球物理模拟：初始生成 8 个不同颜色和半径的小球，受重力作用下落，碰到容器四壁反弹并有能量损耗；小球之间发生碰撞时按动量守恒交换速度，不允许相互穿透或卡在墙内。提供暂停和重置按钮，动画持续运行。${promptEnding}` },
   { name: "齿轮传动机构", prompt: `创建一个 HTML，用 SVG 绘制一组相互啮合的齿轮传动动画：至少 4 个齿轮，齿数分别为 12、24、36、18，齿形要真实可辨，相邻齿轮的齿必须正确啮合而不重叠或穿透，转速与齿数成反比，转向相邻相反。用不同颜色区分齿轮并标注齿数，动画持续循环。${promptEnding}` },
   { name: "城市夜景视差滚动", prompt: `创建一个 HTML，用 SVG 绘制一幅横向无限滚动的城市夜景：至少三层视差（远景山脉与月亮、中景楼群、近景马路），层速由远到近递增；楼窗随机点亮熄灭，马路上有汽车逐辆行驶并带车灯，天空偶尔划过流星。画面循环时无明显跳帧或空白。${promptEnding}` },
   { name: "汉字笔顺书写动画", prompt: `创建一个 HTML，用 SVG 路径动画演示汉字「永」的书写过程：按正确笔顺逐笔书写，共 5 笔（点、横折钩、横撇、撇、捺），每一笔用 stroke-dashoffset 动画呈现毛笔运笔效果，笔画粗细有提按变化，写完一笔再写下一笔。提供重播按钮与当前笔画提示。${promptEnding}` },
-  { name: "海底世界", prompt: `制作一个会动的海底世界：鱼群游动、水母漂浮、气泡上升，点击画面时鱼群会聚向点击位置。画面要有清晰的前后层次和自然的循环动画。${promptEnding}` },
-  { name: "天气卡片", prompt: `制作一组可切换的天气卡片，分别展示晴天、雨天和雪天。每种天气都有不同的持续动画，点击按钮切换场景时应平滑过渡。${promptEnding}` },
-  { name: "粒子烟花", prompt: `制作一个夜空烟花互动页面，用户点击画面的任意位置，就在该处绽放不同颜色的粒子烟花；粒子逐渐消散，连续点击可以同时展示多组烟花。${promptEnding}` },
-  { name: "贪吃蛇", prompt: `制作一个可以玩的贪吃蛇小游戏，包含计分、暂停和重新开始；电脑支持方向键，手机支持屏幕上的方向按钮或滑动操作，游戏结束后能再次开始。${promptEnding}` },
 ] as const;
 type RunState = "idle" | "submitting" | "polling" | "success" | "error";
 type JsonRecord = Record<string, unknown>;
@@ -74,6 +76,7 @@ type TestRun = {
   runError: string;
   model: string;
   inputPrompt?: string;
+  presetName?: string;
   freeCreation?: boolean;
   requestProtocol?: "responses" | "chat_completions";
   reasoningEffort?: string;
@@ -142,6 +145,15 @@ function trimHistory(entries: HistoryEntry[]) {
 function mergeHistory(entries: HistoryEntry[], benchmark: Benchmark, run: TestRun) {
   if (!run.taskId || run.runState === "idle") return entries;
   return trimHistory([{ ...run, benchmark }, ...entries.filter((entry) => entry.taskId !== run.taskId)]);
+}
+
+function historyTestName(entry: HistoryEntry) {
+  if (entry.benchmark === "reasoning") return "糖果";
+  if (entry.benchmark === "frontend") return entry.freeCreation ? "自由创作" : "鹈鹕";
+  if (typeof entry.presetName === "string") return entry.presetName || "自定义";
+  // 旧版没有保存预设名称，只有提示词完全匹配时才补回对应名称。
+  const prompt = entry.inputPrompt ?? asRecord(entry.task?.result).prompt;
+  return customPromptPresets.find((preset) => preset.prompt === prompt)?.name ?? "自定义";
 }
 
 function formatTime(timestamp: number) {
@@ -227,6 +239,7 @@ export function BanbanWorkbench() {
   const [manualModel, setManualModel] = useState(false);
   const [requestProtocol, setRequestProtocol] = useState<"responses" | "chat_completions">("responses");
   const [customPrompt, setCustomPrompt] = useState("");
+  const [selectedPresetName, setSelectedPresetName] = useState("");
   const [freeCreation, setFreeCreation] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
   const [modelMessage, setModelMessage] = useState("");
@@ -614,7 +627,7 @@ export function BanbanWorkbench() {
       taskId: submissionId,
       runError: "",
       model,
-      ...(kind === "custom" ? { inputPrompt: customPrompt.trim() } : {}),
+      ...(kind === "custom" ? { inputPrompt: customPrompt.trim(), presetName: selectedPresetName } : {}),
       ...(kind === "frontend" ? { freeCreation } : {}),
       requestProtocol: kind === "reasoning" || (kind === "frontend" && freeCreation) ? "responses" : requestProtocol,
       reasoningEffort: effort,
@@ -826,8 +839,12 @@ export function BanbanWorkbench() {
                 <NativeSelect
                   id="custom-prompt-preset"
                   className="model-select custom-prompt-preset"
-                  value={customPromptPresets.find((preset) => preset.prompt === customPrompt)?.name ?? ""}
-                  onChange={(event) => setCustomPrompt(customPromptPresets.find((preset) => preset.name === event.target.value)?.prompt ?? "")}
+                  value={selectedPresetName}
+                  onChange={(event) => {
+                    const preset = customPromptPresets.find((item) => item.name === event.target.value);
+                    setSelectedPresetName(preset?.name ?? "");
+                    setCustomPrompt(preset?.prompt ?? "");
+                  }}
                 >
                   <NativeSelectOption value="">自己输入</NativeSelectOption>
                   {customPromptPresets.map((preset) => <NativeSelectOption key={preset.name} value={preset.name}>{preset.name}</NativeSelectOption>)}
@@ -837,7 +854,10 @@ export function BanbanWorkbench() {
                   id="custom-prompt"
                   className="custom-prompt-input"
                   value={customPrompt}
-                  onChange={(event) => setCustomPrompt(event.target.value)}
+                  onChange={(event) => {
+                    setCustomPrompt(event.target.value);
+                    setSelectedPresetName("");
+                  }}
                   maxLength={12000}
                   rows={6}
                   placeholder="描述你想生成的内容。需要可预览的作品时，可要求输出完整的单文件 HTML 或 SVG。"
@@ -955,7 +975,7 @@ export function BanbanWorkbench() {
                           document.getElementById("reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
                         }}
                       >
-                        <span className="history-main"><strong>{entry.model}</strong><small>{entry.benchmark === "reasoning" ? "糖果" : entry.benchmark === "frontend" ? entry.freeCreation ? "自由创作" : "鹈鹕" : "自定义"}</small></span>
+                        <span className="history-main"><strong>{entry.model}</strong><small>{historyTestName(entry)}</small></span>
                         <time dateTime={new Date(entry.startedAt).toISOString()}>{formatTime(entry.startedAt)}</time>
                         {(entry.benchmark !== "custom" || entry.runState !== "success") && <span className={`history-status history-status-${item.tone}`}>{item.label}</span>}
                       </button>

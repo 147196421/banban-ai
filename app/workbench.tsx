@@ -147,12 +147,12 @@ function mergeHistory(entries: HistoryEntry[], benchmark: Benchmark, run: TestRu
   return trimHistory([{ ...run, benchmark }, ...entries.filter((entry) => entry.taskId !== run.taskId)]);
 }
 
-function historyTestName(entry: HistoryEntry) {
-  if (entry.benchmark === "reasoning") return "糖果";
-  if (entry.benchmark === "frontend") return entry.freeCreation ? "自由创作" : "鹈鹕";
-  if (typeof entry.presetName === "string") return entry.presetName || "自定义";
+function runName(run: TestRun, benchmark: Benchmark) {
+  if (benchmark === "reasoning") return "糖果";
+  if (benchmark === "frontend") return run.freeCreation ? "自由创作" : "鹈鹕";
+  if (typeof run.presetName === "string") return run.presetName || "自定义";
   // 旧版没有保存预设名称，只有提示词完全匹配时才补回对应名称。
-  const prompt = entry.inputPrompt ?? asRecord(entry.task?.result).prompt;
+  const prompt = run.inputPrompt ?? asRecord(run.task?.result).prompt;
   return customPromptPresets.find((preset) => preset.prompt === prompt)?.name ?? "自定义";
 }
 
@@ -177,7 +177,7 @@ function describeResult(run: TestRun, benchmark: Benchmark) {
   const quality = assessment.quality;
   const referenceJudgment = task?.evaluation_source === "reference" || task?.evaluation_source === "manxue";
 
-  let label = "等待检测";
+  let label = benchmark === "custom" ? "等待生成" : "等待检测";
   let tone = "idle";
   let summary = "";
 
@@ -701,6 +701,9 @@ export function BanbanWorkbench() {
     && (benchmark !== "custom" || lastPrompt === customPrompt.trim());
   const isRepeat = !isRunningLatest && matchesLatestInput && ["success", "error"].includes(latestRunState);
   const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : benchmark === "custom" && !customPrompt.trim() ? "输入提示词" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : benchmark === "custom" ? "生成时间取决于作品长度" : "约 1–5 分钟";
+  const currentRunName = currentRun.taskId && benchmark !== "reasoning"
+    ? benchmark === "frontend" && !currentRun.freeCreation ? "鹈鹕骑行" : runName(currentRun, benchmark)
+    : "";
   const runTimestamps = currentRun.startedAt > 0 && (
     <div className="run-timestamps">
       <span>开始 <time dateTime={new Date(currentRun.startedAt).toISOString()}>{formatTime(currentRun.startedAt)}</time></span>
@@ -894,31 +897,8 @@ export function BanbanWorkbench() {
         </div>
 
         <div className={`result-panel result-${result.tone}`} id="reports" aria-live="polite">
-          {benchmark === "custom" ? (
-            <div className="custom-output" aria-busy={runState === "submitting" || runState === "polling"}>
-              {selectedHistoryId && <button className="clear-result custom-back" type="button" onClick={clearCurrentResult}><RotateCcw aria-hidden="true" />返回最新</button>}
-              {runTimestamps}
-              {runState === "success" && pelicanHtml && (
-                <PelicanPreview
-                  key={currentRun.taskId}
-                  title="自定义作品"
-                  html={pelicanHtml}
-                  prompt={pelicanPrompt}
-                  svgFormat={asRecord(task?.result).format === "svg"}
-                />
-              )}
-              {runState === "success" && !pelicanHtml && (
-                <pre className="custom-output-text">{String(asRecord(task?.result).text ?? "")}</pre>
-              )}
-              {runState === "success" && usageMetrics}
-              {(runState === "submitting" || runState === "polling") && (
-                <p className="custom-output-feedback" role="status"><LoaderCircle className="spin" aria-hidden="true" />正在生成…</p>
-              )}
-              {runState === "error" && <p className="custom-output-feedback custom-output-error" role="alert">{result.summary}</p>}
-            </div>
-          ) : <>
           <div className="result-topline">
-            <div><span className="section-kicker">{selectedHistoryId ? "历史结果" : "结果"}{benchmark === "frontend" && currentRun.taskId ? ` · ${currentRun.freeCreation ? "自由创作" : "鹈鹕骑行"}` : ""}</span><h2>{currentRun.model || selectedModel || "尚未选择模型"}</h2></div>
+            <div><span className="section-kicker">{selectedHistoryId ? "历史结果" : "结果"}{currentRunName && ` · ${currentRunName}`}</span><h2>{currentRun.model || selectedModel || "尚未选择模型"}</h2></div>
             <div className="result-actions">
               {(hasFinishedRun || selectedHistoryId) && (
                 <button className="clear-result" type="button" onClick={clearCurrentResult}>
@@ -929,15 +909,36 @@ export function BanbanWorkbench() {
             </div>
           </div>
 
-          <div className="result-readout" aria-label={`检测结果：${result.label}`}>
-            <span>{benchmark === "reasoning" ? "逻辑题判定" : ["reference", "manxue"].includes(String(task?.evaluation_source ?? "")) ? "作品质量判定" : "作品结构检查"}</span>
-            <strong>{result.label}</strong>
-            {result.summary && <p>{result.tone === "error" && <AlertTriangle aria-hidden="true" />}{result.summary}</p>}
-          </div>
+          {benchmark !== "custom" && (
+            <div className="result-readout" aria-label={`检测结果：${result.label}`}>
+              <span>{benchmark === "reasoning" ? "逻辑题判定" : ["reference", "manxue"].includes(String(task?.evaluation_source ?? "")) ? "作品质量判定" : "作品结构检查"}</span>
+              <strong>{result.label}</strong>
+              {result.summary && <p>{result.tone === "error" && <AlertTriangle aria-hidden="true" />}{result.summary}</p>}
+            </div>
+          )}
 
           {runTimestamps}
 
-          {benchmark === "frontend" && runState === "success" && pelicanHtml && (
+          {benchmark === "custom" ? (
+            <div className="custom-output" aria-busy={runState === "submitting" || runState === "polling"}>
+              {runState === "success" && pelicanHtml && (
+                <PelicanPreview
+                  key={currentRun.taskId}
+                  title={currentRunName === "自定义" ? "自定义作品" : currentRunName}
+                  html={pelicanHtml}
+                  prompt={pelicanPrompt}
+                  svgFormat={asRecord(task?.result).format === "svg"}
+                />
+              )}
+              {runState === "success" && !pelicanHtml && (
+                <pre className="custom-output-text">{String(asRecord(task?.result).text ?? "")}</pre>
+              )}
+              {(runState === "submitting" || runState === "polling") && (
+                <p className="custom-output-feedback" role="status"><LoaderCircle className="spin" aria-hidden="true" />正在生成…</p>
+              )}
+              {runState === "error" && <p className="custom-output-feedback custom-output-error" role="alert">{result.summary}</p>}
+            </div>
+          ) : benchmark === "frontend" && runState === "success" && pelicanHtml && (
             <PelicanPreview
               key={currentRun.taskId}
               title={currentRun.freeCreation ? "自由创作" : "鹈鹕骑行"}
@@ -949,7 +950,7 @@ export function BanbanWorkbench() {
 
           {usageMetrics}
 
-          {["submitting", "polling"].includes(runState) && <ol className="run-steps">
+          {benchmark !== "custom" && ["submitting", "polling"].includes(runState) && <ol className="run-steps">
             {steps.map((step, index) => {
               const completed = runState === "success" || index < activeStep;
               const current = index === activeStep && !["success", "error"].includes(runState);
@@ -961,7 +962,6 @@ export function BanbanWorkbench() {
               );
             })}
           </ol>}
-          </>}
           <section className="history-section" id="history" aria-label="浏览器历史记录">
             <div className="history-heading"><h2>历史记录</h2><span>访客 ID：{visitorId || "········"} · {history.length}/30</span></div>
             {history.length ? (
@@ -981,7 +981,7 @@ export function BanbanWorkbench() {
                           document.getElementById("reports")?.scrollIntoView({ behavior: "smooth", block: "start" });
                         }}
                       >
-                        <span className="history-main"><strong>{entry.model}</strong><small>{historyTestName(entry)}</small></span>
+                        <span className="history-main"><strong>{entry.model}</strong><small>{runName(entry, entry.benchmark)}</small></span>
                         <time dateTime={new Date(entry.startedAt).toISOString()}>{formatTime(entry.startedAt)}</time>
                         {(entry.benchmark !== "custom" || entry.runState !== "success") && <span className={`history-status history-status-${item.tone}`}>{item.label}</span>}
                       </button>

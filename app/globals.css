@@ -573,4 +573,3 @@ footer p { margin: 0; }
 .custom-output-feedback { display: flex; align-items: center; gap: 10px; min-height: 100px; margin: 0; color: #566b66; }
 .custom-output-feedback svg { width: 18px; height: 18px; }
 .custom-output-error { color: #ab4a41; }
-.custom-back { margin-bottom: 16px; }

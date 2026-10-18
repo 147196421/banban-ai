@@ -8,7 +8,8 @@ import {
   removeExpiredTasks,
 } from "@/db/test-tasks";
 import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
-import { localizeErrorPayload, toChineseError } from "@/lib/user-facing-error";
+import { toChineseError } from "@/lib/user-facing-error";
+import { detectorTransportFailure, inspectDetectorResponse } from "@/lib/detector-diagnostics";
 import { checkRateLimit } from "@/db/rate-limit";
 import { getDetectorService, manxueVisitorConfigUrl, storedDetectorTask } from "@/lib/detector-service";
 
@@ -78,15 +79,25 @@ export async function POST(request: Request) {
     }
 
     after(async () => {
+      let visitorCookie = "";
+      const diagnosticSecrets = [apiKey, baseUrl, ...Object.values(service.headers)];
+      const reportFailure = (failure: ReturnType<typeof detectorTransportFailure>) => {
+        // Never include the request, API Key, session cookie, or full response.
+        console.error("[detector-create-failed]", JSON.stringify({
+          submissionId, source: service.source, benchmark, protocol: freeCreation ? "responses" : protocol,
+          ...failure.diagnostic,
+        }));
+        return markStoredTaskFailed(submissionId, `${failure.userMessage}（诊断编号：${submissionId}）`);
+      };
       try {
         // 自由创作是满血 AI 网页访客接口的选项，公开 /api/v1/tests 不接受 random_scene。
         // 先取得本次访客会话，轮询时仅在服务端持有对应 cookie。
-        let visitorCookie = "";
         if (service.source === "manxue-visitor") {
           const config = await fetch(manxueVisitorConfigUrl, {
             cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(15_000),
           });
           visitorCookie = /^gallery_visitor=([A-Za-z0-9_-]{8,128})(?:;|$)/.exec(config.headers.get("set-cookie") ?? "")?.[1] ?? "";
+          diagnosticSecrets.push(visitorCookie);
           if (!config.ok || !visitorCookie) throw new Error("自由创作会话建立失败，请稍后重试");
         }
         const requestBody = JSON.stringify({
@@ -136,28 +147,16 @@ export async function POST(request: Request) {
         }
         if (!response) throw new Error("检测服务响应超时，请稍后重试");
 
-        const payload = await response.json().catch(() => ({ error: "检测服务返回了无效响应" }));
-        const localized = localizeErrorPayload(payload, "检测任务创建失败，请稍后重试", response.status, "test");
-        const upstreamTaskId = payload && typeof payload === "object" && "id" in payload
-          ? String((payload as { id?: unknown }).id ?? "")
-          : "";
-
-        if (!response.ok || !upstreamTaskId) {
-          const error = localized && typeof localized === "object" && "error" in localized
-            ? String((localized as { error?: unknown }).error ?? "检测任务创建失败")
-            : "检测任务创建失败";
-          await markStoredTaskFailed(submissionId, error);
+        const inspected = await inspectDetectorResponse(response, diagnosticSecrets);
+        if (inspected.failure) {
+          await reportFailure(inspected.failure);
           return;
         }
 
-        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, upstreamTaskId, visitorCookie));
+        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, inspected.id, visitorCookie));
         await removeExpiredTasks().catch(() => undefined);
       } catch (error) {
-        const timeout = error instanceof Error && error.name === "TimeoutError";
-        await markStoredTaskFailed(
-          submissionId,
-          timeout ? "检测服务响应超时，请稍后重试" : toChineseError(error, "检测任务创建失败，请稍后重试", undefined, "test"),
-        );
+        await reportFailure(detectorTransportFailure(error, diagnosticSecrets));
       }
     });
 

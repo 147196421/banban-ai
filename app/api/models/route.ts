@@ -1,6 +1,7 @@
 import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
 import { toChineseError } from "@/lib/user-facing-error";
 import { checkRateLimit } from "@/db/rate-limit";
+import { ModelListConnectionError, requestModelList } from "@/lib/model-list-request";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,8 @@ function extractModelIds(payload: unknown) {
 
   return [...new Set(
     (candidates as ModelItem[])
-      .map((item) => typeof item === "string" ? item : item.id ?? item.name ?? item.model)
+      .map((item) => typeof item === "string" ? item : item && typeof item === "object" ? item.id ?? item.name ?? item.model : undefined)
+      .map((id) => typeof id === "string" ? id.trim() : id)
       .filter(isGptModel),
   )].sort((a, b) => {
     const rank = (id: string) =>
@@ -47,40 +49,14 @@ export async function POST(request: Request) {
       );
     }
 
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const response = await fetch(`${baseUrl}/models`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-        },
-        cache: "no-store",
-        redirect: "manual",
-        signal: AbortSignal.timeout(20_000),
-      });
-
-      const payload = await response.json().catch(() => null) as
-        | { data?: ModelItem[]; models?: ModelItem[]; error?: unknown }
-        | ModelItem[]
-        | null;
-
-      if (!response.ok) {
-        const status = response.status;
-        const error = payload && !Array.isArray(payload) ? payload.error : payload;
-        const message = toChineseError(error, "读取模型失败，请检查接口地址和 API Key", status, "models");
-        return Response.json({ error: message }, { status: [400, 401, 403, 404, 429].includes(status) ? status : 502 });
-      }
-
-      const models = extractModelIds(payload);
-      if (models.length) {
-        return Response.json({ models });
-      }
-
-      if (attempt === 0) {
-        // 个别兼容接口会偶发返回 200 空列表，短暂等待后重试一次。
-        await new Promise((resolve) => setTimeout(resolve, 350));
-      }
+    const { ok, status, payload } = await requestModelList(baseUrl, apiKey);
+    if (!ok) {
+      const message = toChineseError(payload, "读取模型失败，请检查接口地址和 API Key", status, "models");
+      return Response.json({ error: message }, { status: [400, 401, 403, 404, 429].includes(status) ? status : 502 });
+    }
+    const models = extractModelIds(payload);
+    if (models.length) {
+      return Response.json({ models });
     }
 
     return Response.json(
@@ -88,6 +64,10 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   } catch (error) {
+    if (error instanceof ModelListConnectionError) {
+      console.error("[models-fetch-failed]", JSON.stringify({ code: error.code, attempts: 2 }));
+      return Response.json({ error: error.message }, { status: error.status });
+    }
     const timeout = error instanceof Error && error.name === "TimeoutError";
     return Response.json(
       { error: timeout ? "接口响应超时，请稍后重试" : toChineseError(error, "无法读取模型，请检查接口地址和网络", undefined, "models") },

@@ -1,7 +1,6 @@
 // 检测任务由网站服务器转发，浏览器不会直接接触检测服务或附带的 API Key。
 const manxueTestsUrl = "https://manxue.ai/api/v1/tests";
 const manxueVisitorTestsUrl = "https://manxue.ai/api/visitor/tests";
-export const manxueVisitorConfigUrl = "https://manxue.ai/api/visitor/config";
 const ownTestsUrl = "https://detector.banban.plus/v1/tests";
 
 export type DetectorSource = "manxue" | "manxue-visitor" | "reference" | "self-hosted";
@@ -16,6 +15,7 @@ export function getDetectorService(source?: DetectorSource) {
     return { url: manxueTestsUrl, headers: {} as Record<string, string>, source: selected };
   }
   if (selected === "manxue-visitor") {
+    // Historical tasks only. New creative tasks use the public /api/v1/tests API.
     return { url: manxueVisitorTestsUrl, headers: {} as Record<string, string>, source: selected };
   }
   if (selected === "reference") {

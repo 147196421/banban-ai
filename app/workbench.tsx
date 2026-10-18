@@ -536,8 +536,11 @@ export function BanbanWorkbench() {
   const manualModelError = manualModel && selectedModel.trim() && !modelIsGpt
     ? "目前只支持 GPT 系列，请填写 gpt- 开头的模型名"
     : "";
+  const benchmarkModelError = benchmark === "frontend" && selectedModel.trim() && selectedModel.trim() !== "gpt-6-astra"
+    ? "鹈鹕骑行和自由创作目前仅支持 gpt-6-astra，请选择该模型"
+    : "";
   const credentialsReady = !baseUrlError && !apiKeyError;
-  const ready = credentialsReady && modelIsGpt && (benchmark !== "custom" || Boolean(customPrompt.trim()) && customPrompt.length <= 12000) && !["submitting", "polling"].includes(runs[benchmark].runState);
+  const ready = credentialsReady && modelIsGpt && !benchmarkModelError && (benchmark !== "custom" || Boolean(customPrompt.trim()) && customPrompt.length <= 12000) && !["submitting", "polling"].includes(runs[benchmark].runState);
 
   const result = describeResult(currentRun, benchmark);
 
@@ -637,7 +640,7 @@ export function BanbanWorkbench() {
       model,
       ...(kind === "custom" ? { inputPrompt: customPrompt.trim(), presetName: selectedPresetName } : {}),
       ...(kind === "frontend" ? { freeCreation } : {}),
-      requestProtocol: kind === "reasoning" || (kind === "frontend" && freeCreation) ? "responses" : requestProtocol,
+      requestProtocol: kind === "custom" ? requestProtocol : "responses",
       reasoningEffort: effort,
       startedAt,
       finishedAt: 0,
@@ -662,7 +665,7 @@ export function BanbanWorkbench() {
       const response = await fetch(kind === "custom" ? "/v1/generations" : "/v1/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation, protocol: requestProtocol } : {}) }),
+        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation } : {}) }),
         keepalive: true,
       });
       const created = (await response.json()) as JsonRecord;
@@ -700,7 +703,7 @@ export function BanbanWorkbench() {
   const latestRun = runs[benchmark];
   const latestRunState = latestRun.runState;
   const isRunningLatest = ["submitting", "polling"].includes(latestRunState);
-  const requestedProtocol = benchmark === "reasoning" || (benchmark === "frontend" && freeCreation) ? "responses" : requestProtocol;
+  const requestedProtocol = benchmark === "custom" ? requestProtocol : "responses";
   const lastPrompt = latestRun.inputPrompt ?? asRecord(latestRun.task?.result).prompt;
   const matchesLatestInput = Boolean(latestRun.taskId)
     && latestRun.model === selectedModel.trim()
@@ -708,7 +711,7 @@ export function BanbanWorkbench() {
     && (benchmark !== "frontend" || Boolean(latestRun.freeCreation) === freeCreation)
     && (benchmark !== "custom" || lastPrompt === customPrompt.trim());
   const isRepeat = !isRunningLatest && matchesLatestInput && ["success", "error"].includes(latestRunState);
-  const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : benchmark === "custom" && !customPrompt.trim() ? "输入提示词" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : benchmark === "custom" ? "生成时间取决于作品长度" : "约 1–5 分钟";
+  const actionHint = !credentialsReady ? "" : !modelIsGpt ? "选择 GPT 模型" : benchmarkModelError ? "请选择 gpt-6-astra" : benchmark === "custom" && !customPrompt.trim() ? "输入提示词" : ["submitting", "polling"].includes(latestRunState) ? "后台可继续" : benchmark === "custom" ? "生成时间取决于作品长度" : "约 1–5 分钟";
   const currentRunName = currentRun.taskId && benchmark !== "reasoning"
     ? benchmark === "frontend" && !currentRun.freeCreation ? "鹈鹕骑行" : runName(currentRun, benchmark)
     : "";
@@ -831,20 +834,21 @@ export function BanbanWorkbench() {
               ) : (
                 <NativeSelect id="model" className="model-select" value={selectedModel} onChange={(event) => setSelectedModel(event.target.value)} disabled={!models.length} aria-describedby={modelMessage ? "model-help" : undefined}>
                   <NativeSelectOption value="">{models.length ? "请选择 GPT 模型" : "请先获取模型"}</NativeSelectOption>
-                  {models.map((model) => <NativeSelectOption key={model} value={model}>{model}</NativeSelectOption>)}
+                  {models.map((model) => <NativeSelectOption key={model} value={model} disabled={benchmark === "frontend" && model !== "gpt-6-astra"}>{model}</NativeSelectOption>)}
                 </NativeSelect>
               )}
-              {(manualModelError || modelMessage) && <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || modelMessage}</p>}
+              {(manualModelError || benchmarkModelError || modelMessage) && <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || benchmarkModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || benchmarkModelError || modelMessage}</p>}
+              {benchmark === "frontend" && <p className="field-message">满血 AI 的鹈鹕骑行和自由创作仅支持 gpt-6-astra，统一使用 Responses 协议。</p>}
             </div>
 
-            {benchmark !== "reasoning" && (
+            {benchmark === "custom" && (
               <div className="field field-wide">
                 <Label htmlFor="request-protocol">请求协议</Label>
-                <NativeSelect id="request-protocol" className="model-select" value={requestProtocol} onChange={(event) => setRequestProtocol(event.target.value as "responses" | "chat_completions")} disabled={benchmark === "frontend" && freeCreation}>
+                <NativeSelect id="request-protocol" className="model-select" value={requestProtocol} onChange={(event) => setRequestProtocol(event.target.value as "responses" | "chat_completions")}>
                   <NativeSelectOption value="responses">Responses</NativeSelectOption>
                   <NativeSelectOption value="chat_completions">Chat Completions</NativeSelectOption>
                 </NativeSelect>
-                <p className="field-message">{benchmark === "frontend" && freeCreation ? "自由创作使用 Responses 协议。" : "默认使用 Responses；如接口不支持，可切换协议后重试。"}</p>
+                <p className="field-message">默认使用 Responses；如接口不支持，可切换协议后重试。</p>
               </div>
             )}
             {benchmark === "frontend" && (

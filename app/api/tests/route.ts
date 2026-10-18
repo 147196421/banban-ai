@@ -11,7 +11,7 @@ import { isGptModel, normalizeUpstreamBaseUrl } from "@/lib/upstream-url";
 import { toChineseError } from "@/lib/user-facing-error";
 import { detectorTransportFailure, inspectDetectorResponse } from "@/lib/detector-diagnostics";
 import { checkRateLimit } from "@/db/rate-limit";
-import { getDetectorService, manxueVisitorConfigUrl, storedDetectorTask } from "@/lib/detector-service";
+import { getDetectorService, storedDetectorTask } from "@/lib/detector-service";
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +41,12 @@ export async function POST(request: Request) {
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const model = typeof body.model === "string" ? body.model.trim() : "";
-    const benchmark = body.benchmark === "frontend" ? "pelican" : "candy";
-    const freeCreation = benchmark === "pelican" && body.freeCreation === true;
-    const protocol = body.protocol === "chat_completions" ? "chat_completions" : "responses";
-    const service = getDetectorService(freeCreation ? "manxue-visitor" : "manxue");
+    const benchmark = body.benchmark === "frontend"
+      ? body.freeCreation === true ? "creative" : "pelican"
+      : "candy";
+    // Current public API uses Responses internally and rejects protocol/random_scene.
+    // Ignore old clients' protocol selection rather than forwarding removed fields.
+    const service = getDetectorService("manxue");
     if (!service) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }
@@ -60,6 +62,9 @@ export async function POST(request: Request) {
     }
     if (!isGptModel(model)) {
       return Response.json({ error: "目前仅支持 GPT 系列模型" }, { status: 400 });
+    }
+    if (benchmark !== "candy" && model !== "gpt-6-astra") {
+      return Response.json({ error: "满血 AI 的鹈鹕骑行和自由创作目前仅支持 gpt-6-astra，请选择该模型" }, { status: 400 });
     }
 
     const rateLimit = await checkRateLimit(request, "test-create", 12, 60 * 60 * 1000);
@@ -79,35 +84,22 @@ export async function POST(request: Request) {
     }
 
     after(async () => {
-      let visitorCookie = "";
       const diagnosticSecrets = [apiKey, baseUrl, ...Object.values(service.headers)];
       const reportFailure = (failure: ReturnType<typeof detectorTransportFailure>) => {
         // Never include the request, API Key, session cookie, or full response.
         console.error("[detector-create-failed]", JSON.stringify({
-          submissionId, source: service.source, benchmark, protocol: freeCreation ? "responses" : protocol,
+          submissionId, source: service.source, benchmark, protocol: "responses",
           ...failure.diagnostic,
         }));
         return markStoredTaskFailed(submissionId, `${failure.userMessage}（诊断编号：${submissionId}）`);
       };
       try {
-        // 自由创作是满血 AI 网页访客接口的选项，公开 /api/v1/tests 不接受 random_scene。
-        // 先取得本次访客会话，轮询时仅在服务端持有对应 cookie。
-        if (service.source === "manxue-visitor") {
-          const config = await fetch(manxueVisitorConfigUrl, {
-            cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(15_000),
-          });
-          visitorCookie = /^gallery_visitor=([A-Za-z0-9_-]{8,128})(?:;|$)/.exec(config.headers.get("set-cookie") ?? "")?.[1] ?? "";
-          diagnosticSecrets.push(visitorCookie);
-          if (!config.ok || !visitorCookie) throw new Error("自由创作会话建立失败，请稍后重试");
-        }
         const requestBody = JSON.stringify({
           benchmark,
           base_url: baseUrl,
           api_key: apiKey,
           model,
           reasoning_effort: effort,
-          ...(benchmark === "pelican" ? { protocol: freeCreation ? "responses" : protocol } : {}),
-          ...(visitorCookie ? { public: false, random_scene: true } : {}),
         });
         // 满血 AI 的公开接口支持同 IP、同请求体使用 Idempotency-Key 去重。
         // 创建请求遇到短暂拥堵时，可安全重试一次；不要对已开始生成的任务重新提交。
@@ -121,7 +113,6 @@ export async function POST(request: Request) {
                 Accept: "application/json",
                 ...service.headers,
                 ...(service.source === "manxue" ? { "Idempotency-Key": submissionId } : {}),
-                ...(visitorCookie ? { Cookie: `gallery_visitor=${visitorCookie}` } : {}),
               },
               body: requestBody,
               cache: "no-store",
@@ -153,7 +144,7 @@ export async function POST(request: Request) {
           return;
         }
 
-        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, inspected.id, visitorCookie));
+        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, inspected.id));
         await removeExpiredTasks().catch(() => undefined);
       } catch (error) {
         await reportFailure(detectorTransportFailure(error, diagnosticSecrets));

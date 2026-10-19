@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { parseServiceTier } from "@/lib/service-tier";
 
 import { checkRateLimit } from "@/db/rate-limit";
 import { createStoredTask, finishStoredTask, markStoredTaskFailed } from "@/db/test-tasks";
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as Record<string, unknown>;
     const id = typeof body.submissionId === "string" ? body.submissionId : "";
+    const serviceTier = parseServiceTier(body.serviceTier);
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const model = typeof body.model === "string" ? body.model.trim() : "";
@@ -61,8 +63,8 @@ export async function POST(request: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
           body: JSON.stringify(protocol === "responses"
-            ? { model, input: prompt, reasoning: { effort }, max_output_tokens: 20000, store: false, stream: true }
-            : { model, messages: [{ role: "user", content: prompt }], stream: true, reasoning_effort: effort, max_completion_tokens: 20000 }),
+            ? { ...(serviceTier ? { service_tier: serviceTier } : {}), model, input: prompt, reasoning: { effort }, max_output_tokens: 20000, store: false, stream: true }
+            : { ...(serviceTier ? { service_tier: serviceTier } : {}), model, messages: [{ role: "user", content: prompt }], stream: true, reasoning_effort: effort, max_completion_tokens: 20000 }),
           cache: "no-store",
           redirect: "manual",
           signal: AbortSignal.timeout(9 * 60 * 1000),

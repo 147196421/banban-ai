@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { parseServiceTier } from "@/lib/service-tier";
 
 import {
   createStoredTask,
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const submissionId = typeof body.submissionId === "string" ? body.submissionId.trim() : "";
+    const serviceTier = parseServiceTier(body.serviceTier);
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const model = typeof body.model === "string" ? body.model.trim() : "";
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
           api_key: apiKey,
           model,
           reasoning_effort: effort,
+          ...(serviceTier ? { service_tier: serviceTier } : {}),
         });
         // 满血 AI 的公开接口支持同 IP、同请求体使用 Idempotency-Key 去重。
         // 创建请求遇到短暂拥堵时，可安全重试一次；不要对已开始生成的任务重新提交。

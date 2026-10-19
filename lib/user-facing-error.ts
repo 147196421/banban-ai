@@ -61,6 +61,9 @@ export function toChineseError(
   if (/(does not have access|not have access|model access|not allowed to use)/i.test(text)) {
     return "这个 API Key 没有该模型的使用权限，请换一个模型";
   }
+  if (/(service[_ -]?tier|unsupported.*(?:priority|ultrafast))/i.test(text)) {
+    return "当前接口不支持所选快速模式，请选择默认后重试";
+  }
   if (/(reasoning.*effort|unsupported.*effort|invalid.*effort|unsupported value)/i.test(text)) {
     return "当前模型不支持此请求的推理设置，请尝试切换请求协议或模型";
   }

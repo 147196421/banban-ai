@@ -30,6 +30,8 @@ const hooks = registerHooks({
 });
 const { POST } = await import('../app/api/tests/route.ts');
 const { GET } = await import('../app/api/tests/[id]/route.ts');
+const { POST: generate } = await import('../app/api/generations/route.ts');
+const { toChineseError } = await import('../lib/user-facing-error.ts');
 hooks.deregister();
 
 const id = 'f67ed6bf-8df2-4055-95c2-9636fa403174';
@@ -121,4 +123,65 @@ test('historical visitor tasks still use their original endpoint and cookie', as
   });
   const response = await GET(new Request(`https://site.example/v1/tests/${id}`), { params: Promise.resolve({ id }) });
   assert.equal((await response.json()).evaluation_source, 'manxue');
+});
+
+for (const [benchmark, freeCreation] of [['reasoning', false], ['frontend', false], ['frontend', true]]) {
+  for (const serviceTier of ['default', 'priority', 'ultrafast']) {
+    test(`${benchmark} free=${freeCreation} forwards selected tier ${serviceTier}`, async (t) => {
+      let payload;
+      t.mock.method(globalThis, 'fetch', async (_url, init) => {
+        payload = JSON.parse(init.body);
+        return Response.json({ id: 'tier-task' }, { status: 202 });
+      });
+      assert.equal((await POST(request({ benchmark, freeCreation, serviceTier }))).status, 202);
+      await flush();
+      assert.equal(payload.service_tier, serviceTier === 'default' ? undefined : serviceTier);
+      assert.equal(Object.hasOwn(payload, 'service_tier'), serviceTier !== 'default');
+      assert.equal(payload.reasoning_effort, benchmark === 'reasoning' ? 'medium' : 'low');
+      assert.equal(fixture.tasks.get(id).status, 'active');
+    });
+  }
+}
+
+for (const protocol of ['responses', 'chat_completions']) {
+  for (const serviceTier of [undefined, 'default', 'priority', 'ultrafast']) {
+    test(`custom ${protocol} forwards ${serviceTier ?? 'omitted'} tier and saves output`, async (t) => {
+      let payload;
+      t.mock.method(globalThis, 'fetch', async (url, init) => {
+        assert.equal(url, `https://api.example.com/v1/${protocol === 'responses' ? 'responses' : 'chat/completions'}`);
+        payload = JSON.parse(init.body);
+        return Response.json(protocol === 'responses'
+          ? { status: 'completed', output_text: '<html><body>OK</body></html>' }
+          : { choices: [{ finish_reason: 'stop', message: { content: '<html><body>OK</body></html>' } }] });
+      });
+      assert.equal((await generate(request({ protocol, serviceTier, prompt: 'Make a small HTML page' }))).status, 202);
+      await flush();
+      assert.equal(payload.service_tier, ['priority', 'ultrafast'].includes(serviceTier) ? serviceTier : undefined);
+      assert.equal(Object.hasOwn(payload, 'service_tier'), ['priority', 'ultrafast'].includes(serviceTier));
+      assert.equal(protocol === 'responses' ? payload.reasoning.effort : payload.reasoning_effort, 'low');
+      assert.equal(fixture.tasks.get(id).status, 'succeeded');
+      assert.match(JSON.parse(fixture.tasks.get(id).payload_json).result.html, /OK/);
+    });
+  }
+}
+
+test('invalid tiers are rejected before any task is created', async () => {
+  for (const handler of [POST, generate]) {
+    for (const serviceTier of ['fast', 'auto', null, 1, {}]) {
+      const response = await handler(request({ serviceTier, prompt: 'test' }));
+      assert.equal(response.status, 400);
+      assert.match((await response.json()).error, /快速模式无效/);
+    }
+  }
+  assert.equal(fixture.tasks.size, 0);
+  assert.equal(fixture.pending.length, 0);
+});
+
+test('unsupported tiers have a specific error without silently falling back', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: { message: "Unsupported value: service_tier ultrafast" } }, { status: 400 }));
+  await generate(request({ serviceTier: 'ultrafast', prompt: 'test' }));
+  await flush();
+  assert.equal(fixture.tasks.get(id).status, 'failed');
+  assert.match(fixture.tasks.get(id).error, /快速模式.*默认/);
+  assert.match(toChineseError({ message: 'Unsupported value: service_tier priority' }), /快速模式/);
 });

@@ -30,6 +30,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PelicanPreview } from "@/components/pelican-preview";
 import { toChineseError } from "@/lib/user-facing-error";
 
+import { serviceTierLabels, type ServiceTier } from "@/lib/service-tier";
+
 type Benchmark = "reasoning" | "frontend" | "custom";
 const benchmarks: Benchmark[] = ["reasoning", "frontend", "custom"];
 // 糖果保持满血 AI 的中等推理设定；作图（鹈鹕与自定义）默认低推理。
@@ -88,6 +90,7 @@ type TestRun = {
   freeCreation?: boolean;
   requestProtocol?: "responses" | "chat_completions";
   reasoningEffort?: string;
+  serviceTier?: ServiceTier;
   startedAt: number;
   finishedAt: number;
 };
@@ -249,6 +252,7 @@ export function BanbanWorkbench() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [selectedPresetName, setSelectedPresetName] = useState("");
   const [freeCreation, setFreeCreation] = useState(false);
+  const [serviceTier, setServiceTier] = useState<ServiceTier>("default");
   const [modelLoading, setModelLoading] = useState(false);
   const [modelMessage, setModelMessage] = useState("");
   const [runs, setRuns] = useState<TestRuns>(emptyRuns);
@@ -642,6 +646,7 @@ export function BanbanWorkbench() {
       ...(kind === "frontend" ? { freeCreation } : {}),
       requestProtocol: kind === "custom" ? requestProtocol : "responses",
       reasoningEffort: effort,
+      serviceTier,
       startedAt,
       finishedAt: 0,
     };
@@ -665,7 +670,7 @@ export function BanbanWorkbench() {
       const response = await fetch(kind === "custom" ? "/v1/generations" : "/v1/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation } : {}) }),
+        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, serviceTier, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation } : {}) }),
         keepalive: true,
       });
       const created = (await response.json()) as JsonRecord;
@@ -707,6 +712,7 @@ export function BanbanWorkbench() {
   const lastPrompt = latestRun.inputPrompt ?? asRecord(latestRun.task?.result).prompt;
   const matchesLatestInput = Boolean(latestRun.taskId)
     && latestRun.model === selectedModel.trim()
+    && (latestRun.serviceTier ?? "default") === serviceTier
     && (!latestRun.requestProtocol || latestRun.requestProtocol === requestedProtocol)
     && (benchmark !== "frontend" || Boolean(latestRun.freeCreation) === freeCreation)
     && (benchmark !== "custom" || lastPrompt === customPrompt.trim());
@@ -720,6 +726,7 @@ export function BanbanWorkbench() {
       <span>开始 <time dateTime={new Date(currentRun.startedAt).toISOString()}>{formatTime(currentRun.startedAt)}</time></span>
       {currentRun.finishedAt > 0 && <span>完成 <time dateTime={new Date(currentRun.finishedAt).toISOString()}>{formatTime(currentRun.finishedAt)}</time></span>}
       {currentRun.requestProtocol && <span>协议 {currentRun.requestProtocol === "responses" ? "Responses" : "Chat Completions"} · 推理 {effortLabels[currentRun.reasoningEffort ?? ""] ?? currentRun.reasoningEffort ?? "—"}</span>}
+      <span>快速模式 {serviceTierLabels[currentRun.serviceTier ?? "default"] ?? "默认"}</span>
     </div>
   );
   const usageMetrics = (
@@ -839,6 +846,16 @@ export function BanbanWorkbench() {
               )}
               {(manualModelError || benchmarkModelError || modelMessage) && <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || benchmarkModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || benchmarkModelError || modelMessage}</p>}
               {benchmark === "frontend" && <p className="field-message">满血 AI 的鹈鹕骑行和自由创作仅支持 gpt-6-astra，统一使用 Responses 协议。</p>}
+            </div>
+
+            <div className="field field-wide">
+              <Label htmlFor="service-tier">快速模式</Label>
+              <NativeSelect id="service-tier" className="model-select" value={serviceTier} onChange={(event) => setServiceTier(event.target.value as ServiceTier)} aria-describedby="service-tier-help">
+                <NativeSelectOption value="default">默认</NativeSelectOption>
+                <NativeSelectOption value="priority">Fast</NativeSelectOption>
+                <NativeSelectOption value="ultrafast">UltraFast</NativeSelectOption>
+              </NativeSelect>
+              <p id="service-tier-help" className="field-message">是否支持加速取决于接口服务商；快速模式不改变推理强度。</p>
             </div>
 
             {benchmark === "custom" && (

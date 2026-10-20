@@ -845,7 +845,7 @@ export function BanbanWorkbench() {
                 </NativeSelect>
               )}
               {(manualModelError || benchmarkModelError || modelMessage) && <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || benchmarkModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || benchmarkModelError || modelMessage}</p>}
-              {benchmark === "frontend" && <p className="field-message">满血 AI 的鹈鹕骑行和自由创作仅支持 gpt-6-astra，统一使用 Responses 协议。</p>}
+              {benchmark === "frontend" && <p className="field-message">鹈鹕骑行和自由创作仅支持 gpt-6-astra，统一使用 Responses 协议。</p>}
             </div>
 
             <div className="field field-wide">

@@ -185,3 +185,104 @@ test('unsupported tiers have a specific error without silently falling back', as
   assert.match(fixture.tasks.get(id).error, /快速模式.*默认/);
   assert.match(toChineseError({ message: 'Unsupported value: service_tier priority' }), /快速模式/);
 });
+
+for (const requestType of ['stream', 'sync']) {
+  for (const [benchmark, freeCreation, reasoningEffort] of [['reasoning', false, 'max'], ['frontend', false, 'medium'], ['frontend', true, 'high']]) {
+    test(`visitor ${benchmark} creative=${freeCreation} ${requestType} is private and polls with its own cookie`, async (t) => {
+      const calls = [];
+      t.mock.method(globalThis, 'fetch', async (url, init) => {
+        calls.push({ url, init });
+        if (url.endsWith('/config')) return Response.json({}, { headers: { 'Set-Cookie': 'gallery_visitor=test-cookie; Path=/; HttpOnly; Secure' } });
+        assert.equal(init.headers.Cookie, 'gallery_visitor=test-cookie');
+        if (init.method === 'POST') {
+          assert.equal(url, 'https://manxue.ai/api/visitor/tests');
+          assert.deepEqual(JSON.parse(init.body), {
+            benchmark: benchmark === 'reasoning' ? 'candy' : 'pelican',
+            base_url: 'https://api.example.com/v1', api_key: 'test-only-key', model: 'gpt-6-astra',
+            reasoning_effort: reasoningEffort, public: false, protocol: 'responses', preserve_base_url: true,
+            stream: requestType === 'stream', service_tier: 'priority', ...(freeCreation ? { random_scene: true } : {}),
+          });
+          assert.equal(init.headers['Idempotency-Key'], id);
+          return Response.json({ id: 'visitor-task', status: 'running' }, { status: 202 });
+        }
+        assert.equal(url, 'https://manxue.ai/api/visitor/tests/visitor-task');
+        return Response.json({ id: 'visitor-task', status: 'succeeded', public: false, result: { html: '<html>OK</html>' } });
+      });
+      const response = await POST(request({ benchmark, freeCreation, reasoningEffort, requestType, serviceTier: 'priority' }));
+      assert.equal(response.status, 202);
+      assert.ok(!(await response.text()).includes('test-cookie'));
+      await flush();
+      assert.equal(fixture.tasks.get(id).upstream_task_id, 'manxue-visitor:visitor-task:test-cookie');
+      const result = await GET(new Request(`https://site.example/v1/tests/${id}`), { params: Promise.resolve({ id }) });
+      const report = await result.json();
+      assert.equal(report.status, 'succeeded');
+      assert.equal(report.public, false);
+      assert.equal(calls.length, 3);
+      assert.ok(!JSON.stringify(report).includes('test-cookie'));
+    });
+  }
+}
+
+for (const reasoningEffort of ['low', 'medium', 'high', 'xhigh', 'max']) {
+  for (const protocol of ['responses', 'chat_completions']) {
+    for (const requestType of ['stream', 'sync']) {
+      test(`custom ${protocol} ${reasoningEffort} ${requestType} transmits options and consumes the response`, async (t) => {
+        t.mock.method(globalThis, 'fetch', async (_url, init) => {
+          const body = JSON.parse(init.body);
+          assert.equal(body.stream, requestType === 'stream');
+          assert.equal(protocol === 'responses' ? body.reasoning.effort : body.reasoning_effort, reasoningEffort);
+          const html = '<html><body>OK</body></html>';
+          if (requestType === 'sync') return Response.json(protocol === 'responses'
+            ? { status: 'completed', output_text: html, usage: { input_tokens: 11, output_tokens: 12 } }
+            : { choices: [{ finish_reason: 'stop', message: { content: html } }], usage: { prompt_tokens: 11, completion_tokens: 12 } });
+          const data = protocol === 'responses'
+            ? { type: 'response.completed', response: { output_text: html, usage: { input_tokens: 11, output_tokens: 12 } } }
+            : { choices: [{ delta: { content: html }, finish_reason: 'stop' }], usage: { prompt_tokens: 11, completion_tokens: 12 } };
+          return new Response(`data: ${JSON.stringify(data)}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } });
+        });
+        assert.equal((await generate(request({ protocol, reasoningEffort, requestType, prompt: 'test' }))).status, 202);
+        await flush();
+        assert.equal(fixture.tasks.get(id).status, 'succeeded');
+        const result = JSON.parse(fixture.tasks.get(id).payload_json).result;
+        assert.match(result.html, /OK/);
+        assert.equal(result.input_tokens, 11);
+        assert.equal(result.output_tokens, 12);
+      });
+    }
+  }
+}
+
+test('invalid reasoning and request types never create tasks or contact upstream', async () => {
+  for (const handler of [POST, generate]) {
+    for (const requestType of [null, false, 'false', 'streaming', {}]) {
+      const response = await handler(request({ requestType, prompt: 'test' }));
+      assert.equal(response.status, 400);
+      assert.match((await response.json()).error, /请求类型无效/);
+    }
+    for (const reasoningEffort of [null, 1, 'ultra', 'none', {}]) {
+      const response = await handler(request({ benchmark: 'reasoning', reasoningEffort, prompt: 'test' }));
+      assert.equal(response.status, 400);
+      assert.match((await response.json()).error, /推理程度无效/);
+    }
+  }
+  for (const reasoningEffort of ['xhigh', 'max']) {
+    assert.equal((await POST(request({ reasoningEffort, requestType: 'sync' }))).status, 400);
+  }
+  assert.equal(fixture.tasks.size, 0);
+  assert.equal(fixture.pending.length, 0);
+});
+
+test('failed visitor session does not submit any model credentials', async (t) => {
+  let calls = 0;
+  t.mock.method(console, 'error', () => {});
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    calls++;
+    assert.equal(url, 'https://manxue.ai/api/visitor/config');
+    assert.equal(init.body, undefined);
+    return Response.json({}, { status: 503 });
+  });
+  await POST(request({ requestType: 'sync' }));
+  await flush();
+  assert.equal(calls, 1);
+  assert.equal(fixture.tasks.get(id).status, 'failed');
+});

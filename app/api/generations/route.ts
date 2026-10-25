@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { parseReasoningEffort, parseRequestType } from "@/lib/generation-options";
 import { parseServiceTier } from "@/lib/service-tier";
 
 import { checkRateLimit } from "@/db/rate-limit";
@@ -35,11 +36,11 @@ export async function POST(request: Request) {
     const body = await request.json() as Record<string, unknown>;
     const id = typeof body.submissionId === "string" ? body.submissionId : "";
     const serviceTier = parseServiceTier(body.serviceTier);
+    const requestType = parseRequestType(body.requestType);
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const model = typeof body.model === "string" ? body.model.trim() : "";
-    // 自定义创作始终使用低推理，避免旧版客户端传入高推理导致等待过久。
-    const effort = "low";
+    const effort = parseReasoningEffort(body.reasoningEffort);
     const protocol = body.protocol === "chat_completions" ? "chat_completions" : "responses";
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
 
@@ -63,8 +64,8 @@ export async function POST(request: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
           body: JSON.stringify(protocol === "responses"
-            ? { ...(serviceTier ? { service_tier: serviceTier } : {}), model, input: prompt, reasoning: { effort }, max_output_tokens: 20000, store: false, stream: true }
-            : { ...(serviceTier ? { service_tier: serviceTier } : {}), model, messages: [{ role: "user", content: prompt }], stream: true, reasoning_effort: effort, max_completion_tokens: 20000 }),
+            ? { ...(serviceTier ? { service_tier: serviceTier } : {}), model, input: prompt, reasoning: { effort }, max_output_tokens: 20000, store: false, stream: requestType === "stream" }
+            : { ...(serviceTier ? { service_tier: serviceTier } : {}), model, messages: [{ role: "user", content: prompt }], stream: requestType === "stream", reasoning_effort: effort, max_completion_tokens: 20000 }),
           cache: "no-store",
           redirect: "manual",
           signal: AbortSignal.timeout(9 * 60 * 1000),

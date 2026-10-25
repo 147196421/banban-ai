@@ -15,7 +15,7 @@ export function getDetectorService(source?: DetectorSource) {
     return { url: manxueTestsUrl, headers: {} as Record<string, string>, source: selected };
   }
   if (selected === "manxue-visitor") {
-    // Historical tasks only. New creative tasks use the public /api/v1/tests API.
+    // Explicit stream/sync selection uses the visitor API; keep its task cookie for polling.
     return { url: manxueVisitorTestsUrl, headers: {} as Record<string, string>, source: selected };
   }
   if (selected === "reference") {

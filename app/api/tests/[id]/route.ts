@@ -39,7 +39,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     }
     const upstreamTaskId = upstream.id || id;
     if (service.source === "manxue-visitor" && !upstream.visitorCookie) {
-      return Response.json({ error: "自由创作会话已失效，请重新检测" }, { status: 502 });
+      return Response.json({ error: "检测会话已失效，请重新检测" }, { status: 502 });
     }
 
     const response = await fetch(`${service.url}/${encodeURIComponent(upstreamTaskId)}`, {

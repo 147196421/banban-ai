@@ -30,12 +30,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PelicanPreview } from "@/components/pelican-preview";
 import { toChineseError } from "@/lib/user-facing-error";
 
+import { allowedReasoningEfforts, type ReasoningEffort, type RequestType } from "@/lib/generation-options";
 import { serviceTierLabels, type ServiceTier } from "@/lib/service-tier";
 
 type Benchmark = "reasoning" | "frontend" | "custom";
 const benchmarks: Benchmark[] = ["reasoning", "frontend", "custom"];
-// 糖果保持满血 AI 的中等推理设定；作图（鹈鹕与自定义）默认低推理。
-const defaultEffort = (kind: Benchmark) => kind === "reasoning" ? "medium" : "low";
 const effortLabels: Record<string, string> = { low: "低", medium: "中", high: "高", xhigh: "超高", max: "最大", ultra: "极限" };
 const promptEnding = "请输出可直接运行的完整单文件 HTML，使用内联 SVG、CSS 和 JavaScript 实现，适配手机和电脑，不依赖外部资源。只输出 HTML 代码，不要代码围栏或解释文字。";
 const customPromptPresets = [
@@ -91,6 +90,7 @@ type TestRun = {
   requestProtocol?: "responses" | "chat_completions";
   reasoningEffort?: string;
   serviceTier?: ServiceTier;
+  requestType?: RequestType;
   startedAt: number;
   finishedAt: number;
 };
@@ -253,6 +253,8 @@ export function BanbanWorkbench() {
   const [selectedPresetName, setSelectedPresetName] = useState("");
   const [freeCreation, setFreeCreation] = useState(false);
   const [serviceTier, setServiceTier] = useState<ServiceTier>("default");
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("low");
+  const [requestType, setRequestType] = useState<RequestType>("stream");
   const [modelLoading, setModelLoading] = useState(false);
   const [modelMessage, setModelMessage] = useState("");
   const [runs, setRuns] = useState<TestRuns>(emptyRuns);
@@ -631,7 +633,7 @@ export function BanbanWorkbench() {
   async function startTest() {
     if (!ready) return;
     const kind = benchmark;
-    const effort = defaultEffort(kind);
+    const effort = reasoningEffort;
     const model = selectedModel.trim();
     const submissionId = createSubmissionId();
     const startedAt = Date.now();
@@ -646,6 +648,7 @@ export function BanbanWorkbench() {
       ...(kind === "frontend" ? { freeCreation } : {}),
       requestProtocol: kind === "custom" ? requestProtocol : "responses",
       reasoningEffort: effort,
+      requestType,
       serviceTier,
       startedAt,
       finishedAt: 0,
@@ -670,7 +673,7 @@ export function BanbanWorkbench() {
       const response = await fetch(kind === "custom" ? "/v1/generations" : "/v1/tests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, serviceTier, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation } : {}) }),
+        body: JSON.stringify({ submissionId, baseUrl, apiKey, model, benchmark: kind, serviceTier, reasoningEffort: effort, requestType, ...(kind === "custom" ? { prompt: customPrompt.trim(), protocol: requestProtocol } : {}), ...(kind === "frontend" ? { freeCreation } : {}) }),
         keepalive: true,
       });
       const created = (await response.json()) as JsonRecord;
@@ -699,6 +702,7 @@ export function BanbanWorkbench() {
   function changeBenchmark(value: string) {
     const next = value as Benchmark;
     setBenchmark(next);
+    if (!allowedReasoningEfforts(next === "frontend").includes(reasoningEffort)) setReasoningEffort("low");
     setSelectedHistoryId("");
     setRequestProtocol("responses");
   }
@@ -713,6 +717,8 @@ export function BanbanWorkbench() {
   const matchesLatestInput = Boolean(latestRun.taskId)
     && latestRun.model === selectedModel.trim()
     && (latestRun.serviceTier ?? "default") === serviceTier
+    && latestRun.reasoningEffort === reasoningEffort
+    && latestRun.requestType === requestType
     && (!latestRun.requestProtocol || latestRun.requestProtocol === requestedProtocol)
     && (benchmark !== "frontend" || Boolean(latestRun.freeCreation) === freeCreation)
     && (benchmark !== "custom" || lastPrompt === customPrompt.trim());
@@ -726,6 +732,7 @@ export function BanbanWorkbench() {
       <span>开始 <time dateTime={new Date(currentRun.startedAt).toISOString()}>{formatTime(currentRun.startedAt)}</time></span>
       {currentRun.finishedAt > 0 && <span>完成 <time dateTime={new Date(currentRun.finishedAt).toISOString()}>{formatTime(currentRun.finishedAt)}</time></span>}
       {currentRun.requestProtocol && <span>协议 {currentRun.requestProtocol === "responses" ? "Responses" : "Chat Completions"} · 推理 {effortLabels[currentRun.reasoningEffort ?? ""] ?? currentRun.reasoningEffort ?? "—"}</span>}
+      {currentRun.requestType && <span>请求类型 {currentRun.requestType === "sync" ? "同步" : "流式"}</span>}
       <span>快速模式 {serviceTierLabels[currentRun.serviceTier ?? "default"] ?? "默认"}</span>
     </div>
   );
@@ -846,6 +853,23 @@ export function BanbanWorkbench() {
               )}
               {(manualModelError || benchmarkModelError || modelMessage) && <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || benchmarkModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || benchmarkModelError || modelMessage}</p>}
               {benchmark === "frontend" && <p className="field-message">鹈鹕骑行和自由创作仅支持 gpt-6-astra，统一使用 Responses 协议。</p>}
+            </div>
+
+            <div className="field field-wide">
+              <Label htmlFor="reasoning-effort">推理程度</Label>
+              <NativeSelect id="reasoning-effort" className="model-select" value={reasoningEffort} onChange={(event) => setReasoningEffort(event.target.value as ReasoningEffort)}>
+                {allowedReasoningEfforts(benchmark === "frontend").map((effort) => <NativeSelectOption key={effort} value={effort}>{effort}（{effortLabels[effort]}）</NativeSelectOption>)}
+              </NativeSelect>
+              <p className="field-message">{benchmark === "frontend" ? "鹈鹕骑行和自由创作支持 low、medium、high。" : "是否支持所选推理程度取决于模型和接口服务商。"}</p>
+            </div>
+
+            <div className="field field-wide">
+              <Label htmlFor="request-type">请求类型</Label>
+              <NativeSelect id="request-type" className="model-select" value={requestType} onChange={(event) => setRequestType(event.target.value as RequestType)}>
+                <NativeSelectOption value="stream">流式</NativeSelectOption>
+                <NativeSelectOption value="sync">同步</NativeSelectOption>
+              </NativeSelect>
+              <p className="field-message">流式分段接收模型响应，同步等待完整响应；均在完成后展示结果。</p>
             </div>
 
             <div className="field field-wide">
@@ -1004,7 +1028,7 @@ export function BanbanWorkbench() {
                         className="history-item"
                         aria-pressed={selectedHistoryId === entry.taskId}
                         onClick={() => {
-                          setBenchmark(entry.benchmark);
+                          changeBenchmark(entry.benchmark);
                           setSelectedHistoryId(entry.taskId);
                           setRequestProtocol("responses");
                           document.getElementById("reports")?.scrollIntoView({ behavior: "smooth", block: "start" });

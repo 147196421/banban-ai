@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { parseReasoningEffort, parseRequestType } from "@/lib/generation-options";
 import { parseServiceTier } from "@/lib/service-tier";
 
 import {
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as Record<string, unknown>;
     const submissionId = typeof body.submissionId === "string" ? body.submissionId.trim() : "";
     const serviceTier = parseServiceTier(body.serviceTier);
+    const requestType = parseRequestType(body.requestType);
     const baseUrl = normalizeUpstreamBaseUrl(body.baseUrl);
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const model = typeof body.model === "string" ? body.model.trim() : "";
@@ -48,12 +50,14 @@ export async function POST(request: Request) {
       : "candy";
     // Current public API uses Responses internally and rejects protocol/random_scene.
     // Ignore old clients' protocol selection rather than forwarding removed fields.
-    const service = getDetectorService("manxue");
+    // Request-type selection is currently supported by the visitor API only.
+    // Keep old clients on the public API; never forward stream to that endpoint.
+    const service = getDetectorService(body.requestType === undefined ? "manxue" : "manxue-visitor");
     if (!service) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }
-    // 固定为满血 AI 对应测试的推理程度；忽略旧版客户端传入的选择。
-    const effort = benchmark === "candy" ? "medium" : "low";
+    // Preserve old clients' defaults when no explicit effort was submitted.
+    const effort = parseReasoningEffort(body.reasoningEffort, benchmark !== "candy", benchmark === "candy" ? "medium" : "low");
 
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId)) {
       return Response.json({ error: "检测任务编号无效" }, { status: 400 });
@@ -96,12 +100,26 @@ export async function POST(request: Request) {
         return markStoredTaskFailed(submissionId, `${failure.userMessage}（诊断编号：${submissionId}）`);
       };
       try {
+        let visitorCookie = "";
+        if (service.source === "manxue-visitor") {
+          const session = await fetch("https://manxue.ai/api/visitor/config", {
+            cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(15_000),
+          });
+          visitorCookie = /(?:^|[,;]\s*)gallery_visitor=([A-Za-z0-9_-]+)/.exec(session.headers.get("set-cookie") ?? "")?.[1] ?? "";
+          if (!session.ok || !visitorCookie) throw new Error("无法建立检测会话，请稍后重试");
+          diagnosticSecrets.push(visitorCookie);
+        }
         const requestBody = JSON.stringify({
-          benchmark,
+          benchmark: service.source === "manxue-visitor" && benchmark === "creative" ? "pelican" : benchmark,
           base_url: baseUrl,
           api_key: apiKey,
           model,
           reasoning_effort: effort,
+          ...(service.source === "manxue-visitor" ? {
+            public: false, protocol: "responses", preserve_base_url: true,
+            stream: requestType === "stream",
+            ...(benchmark === "creative" ? { random_scene: true } : {}),
+          } : {}),
           ...(serviceTier ? { service_tier: serviceTier } : {}),
         });
         // 满血 AI 的公开接口支持同 IP、同请求体使用 Idempotency-Key 去重。
@@ -115,7 +133,8 @@ export async function POST(request: Request) {
                 "Content-Type": "application/json",
                 Accept: "application/json",
                 ...service.headers,
-                ...(service.source === "manxue" ? { "Idempotency-Key": submissionId } : {}),
+                ...(visitorCookie ? { Cookie: `gallery_visitor=${visitorCookie}` } : {}),
+                "Idempotency-Key": submissionId,
               },
               body: requestBody,
               cache: "no-store",
@@ -147,7 +166,7 @@ export async function POST(request: Request) {
           return;
         }
 
-        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, inspected.id));
+        await markStoredTaskActive(submissionId, storedDetectorTask(service.source, inspected.id, visitorCookie || undefined));
         await removeExpiredTasks().catch(() => undefined);
       } catch (error) {
         await reportFailure(detectorTransportFailure(error, diagnosticSecrets));

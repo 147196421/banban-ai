@@ -837,7 +837,7 @@ export function BanbanWorkbench() {
                 {modelLoading ? "正在读取" : models.length ? "重新读取模型" : "读取可用模型"}
               </Button>
               <button className="manual-link" type="button" onClick={() => { setManualModel((value) => !value); setSelectedModel(""); setModelMessage(""); }}>
-                {manualModel ? "使用模型列表" : "手动填写模型名"}
+                {manualModel ? "使用模型列表" : "手动填写"}
               </button>
             </div>
 
@@ -852,46 +852,54 @@ export function BanbanWorkbench() {
                 </NativeSelect>
               )}
               {(manualModelError || benchmarkModelError || modelMessage) && <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || benchmarkModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || benchmarkModelError || modelMessage}</p>}
-              {benchmark === "frontend" && <p className="field-message">鹈鹕骑行和自由创作仅支持 gpt-6-astra，统一使用 Responses 协议。</p>}
+              {benchmark === "frontend" && <p className="field-message">鹈鹕骑行 / 自由创作：仅支持 gpt-6-astra · Responses。</p>}
             </div>
 
-            <div className="field field-wide">
-              <Label htmlFor="reasoning-effort">推理程度</Label>
-              <NativeSelect id="reasoning-effort" className="model-select" value={reasoningEffort} onChange={(event) => setReasoningEffort(event.target.value as ReasoningEffort)}>
-                {allowedReasoningEfforts(benchmark === "frontend").map((effort) => <NativeSelectOption key={effort} value={effort}>{effort}（{effortLabels[effort]}）</NativeSelectOption>)}
-              </NativeSelect>
-              <p className="field-message">{benchmark === "frontend" ? "鹈鹕骑行和自由创作支持 low、medium、high。" : "是否支持所选推理程度取决于模型和接口服务商。"}</p>
-            </div>
-
-            <div className="field field-wide">
-              <Label htmlFor="request-type">请求类型</Label>
-              <NativeSelect id="request-type" className="model-select" value={requestType} onChange={(event) => setRequestType(event.target.value as RequestType)}>
-                <NativeSelectOption value="stream">流式</NativeSelectOption>
-                <NativeSelectOption value="sync">同步</NativeSelectOption>
-              </NativeSelect>
-              <p className="field-message">流式分段接收模型响应，同步等待完整响应；均在完成后展示结果。</p>
-            </div>
-
-            <div className="field field-wide">
-              <Label htmlFor="service-tier">快速模式</Label>
-              <NativeSelect id="service-tier" className="model-select" value={serviceTier} onChange={(event) => setServiceTier(event.target.value as ServiceTier)} aria-describedby="service-tier-help">
-                <NativeSelectOption value="default">默认</NativeSelectOption>
-                <NativeSelectOption value="priority">Fast</NativeSelectOption>
-                <NativeSelectOption value="ultrafast">UltraFast</NativeSelectOption>
-              </NativeSelect>
-              <p id="service-tier-help" className="field-message">是否支持加速取决于接口服务商；快速模式不改变推理强度。</p>
-            </div>
-
-            {benchmark === "custom" && (
-              <div className="field field-wide">
-                <Label htmlFor="request-protocol">请求协议</Label>
-                <NativeSelect id="request-protocol" className="model-select" value={requestProtocol} onChange={(event) => setRequestProtocol(event.target.value as "responses" | "chat_completions")}>
-                  <NativeSelectOption value="responses">Responses</NativeSelectOption>
-                  <NativeSelectOption value="chat_completions">Chat Completions</NativeSelectOption>
+            <div className="generation-options field-wide">
+              <div className="field">
+                <Label htmlFor="reasoning-effort">推理程度</Label>
+                <NativeSelect id="reasoning-effort" className="model-select" value={reasoningEffort} onChange={(event) => setReasoningEffort(event.target.value as ReasoningEffort)}>
+                  {allowedReasoningEfforts(benchmark === "frontend").map((effort) => <NativeSelectOption key={effort} value={effort}>{effort}（{effortLabels[effort]}）</NativeSelectOption>)}
                 </NativeSelect>
-                <p className="field-message">默认使用 Responses；如接口不支持，可切换协议后重试。</p>
               </div>
-            )}
+
+              <div className="field">
+                <Label htmlFor="service-tier">快速模式</Label>
+                <NativeSelect id="service-tier" className="model-select" value={serviceTier} onChange={(event) => setServiceTier(event.target.value as ServiceTier)}>
+                  <NativeSelectOption value="default">默认</NativeSelectOption>
+                  <NativeSelectOption value="priority">Fast</NativeSelectOption>
+                  <NativeSelectOption value="ultrafast">UltraFast</NativeSelectOption>
+                </NativeSelect>
+              </div>
+
+              <div className={`field${benchmark === "custom" ? "" : " field-wide"}`}>
+                <Label htmlFor="request-type">请求类型</Label>
+                <NativeSelect id="request-type" className="model-select" value={requestType} onChange={(event) => setRequestType(event.target.value as RequestType)}>
+                  <NativeSelectOption value="stream">流式</NativeSelectOption>
+                  <NativeSelectOption value="sync">同步</NativeSelectOption>
+                </NativeSelect>
+              </div>
+
+              {benchmark === "custom" && (
+                <div className="field">
+                  <Label htmlFor="request-protocol">请求协议</Label>
+                  <NativeSelect id="request-protocol" className="model-select" value={requestProtocol} onChange={(event) => setRequestProtocol(event.target.value as "responses" | "chat_completions")}>
+                    <NativeSelectOption value="responses">Responses</NativeSelectOption>
+                    <NativeSelectOption value="chat_completions">Chat Completions</NativeSelectOption>
+                  </NativeSelect>
+                </div>
+              )}
+            </div>
+
+            <details className="parameter-help field-wide">
+              <summary>参数说明</summary>
+              <div>
+                <p>{benchmark === "frontend" ? "鹈鹕骑行和自由创作支持 low、medium、high。" : "推理程度是否受支持取决于模型和接口服务商。"}</p>
+                <p>快速模式取决于接口服务商，不改变推理强度。</p>
+                <p>流式分段接收响应，同步等待完整响应；均在完成后展示结果。</p>
+                {benchmark === "custom" && <p>默认使用 Responses；接口不支持时可切换协议。</p>}
+              </div>
+            </details>
             {benchmark === "frontend" && (
               <div className="field field-wide">
                 <label className="free-creation-option" htmlFor="free-creation">
@@ -929,7 +937,7 @@ export function BanbanWorkbench() {
                     setSelectedPresetName("");
                   }}
                   maxLength={12000}
-                  rows={6}
+                  rows={5}
                   placeholder="描述你想生成的内容。需要可预览的作品时，可要求输出完整的单文件 HTML 或 SVG。"
                 />
               </div>

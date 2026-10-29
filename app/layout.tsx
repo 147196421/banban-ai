@@ -5,8 +5,9 @@ export const metadata: Metadata = {
   title: "办办AI｜GPT接口能力检测",
   description: "读取接口开放的 GPT 模型，使用固定推理题和单页动画题检测输出表现。",
   icons: {
-    icon: "/brand-logo-v1.png",
-    shortcut: "/brand-logo-v1.png",
+    icon: [{ url: "/favicon.ico", sizes: "any", type: "image/x-icon" }, { url: "/brand-logo-v1.png", sizes: "512x512", type: "image/png" }],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 };
 

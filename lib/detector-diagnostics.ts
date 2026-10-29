@@ -32,7 +32,7 @@ export function detectorTransportFailure(error: unknown, secrets: string[]) {
   const name = error instanceof Error ? error.name : "UnknownError";
   const category = name === "TimeoutError" || name === "AbortError" ? "timeout" : "transport_error";
   return {
-    userMessage: category === "timeout" ? "检测服务响应超时，请稍后重试" : "检测任务创建异常，请联系站点管理员查看诊断日志",
+    userMessage: category === "timeout" ? "检测服务响应超时，请稍后重试" : "检测服务连接失败，请稍后重试；若持续发生请联系站点管理员",
     diagnostic: { category, message: redactDetectorMessage(messageFrom(error), secrets) },
   };
 }

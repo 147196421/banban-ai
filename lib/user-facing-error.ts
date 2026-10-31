@@ -33,6 +33,12 @@ export function toChineseError(
     return "这条历史记录没有保存具体的接口错误；请重新生成以查看新的提示";
   }
 
+  // The detector accepted the task, but the model API it called returned 502.
+  // Distinguish this from a failure of our site or the detector itself.
+  if (context === "poll" && /API 服务返回异常状态\s*[（(]HTTP\s*502[）)]/i.test(message)) {
+    return "模型接口返回 HTTP 502，请稍后重试或更换可用的接口地址；若持续发生，请联系接口服务商";
+  }
+
   if (status === 401 || /(unauthori[sz]ed|authentication|incorrect api key|invalid api key|invalid.*token|api key.*invalid)/i.test(text)) {
     return "API Key 无效或已失效，请检查后重新填写";
   }

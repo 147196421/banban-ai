@@ -125,6 +125,19 @@ test('historical visitor tasks still use their original endpoint and cookie', as
   assert.equal((await response.json()).evaluation_source, 'manxue');
 });
 
+test('model gateway 502 from detector polling identifies the failing layer', async (t) => {
+  fixture.tasks.set(id, { id, status: 'active', upstream_task_id: 'manxue-visitor:failed-task:test-cookie' });
+  t.mock.method(globalThis, 'fetch', async () => Response.json({
+    id: 'failed-task', status: 'failed',
+    error: 'API 服务返回异常状态（HTTP 502），请检查配置或稍后重试',
+  }));
+  const response = await GET(new Request(`https://site.example/v1/tests/${id}`), { params: Promise.resolve({ id }) });
+  const report = await response.json();
+  assert.equal(report.status, 'failed');
+  assert.match(report.error, /模型接口返回 HTTP 502.*更换可用的接口地址/);
+  assert.equal(fixture.tasks.get(id).status, 'failed');
+});
+
 for (const [benchmark, freeCreation] of [['reasoning', false], ['frontend', false], ['frontend', true]]) {
   for (const serviceTier of ['default', 'priority', 'ultrafast']) {
     test(`${benchmark} free=${freeCreation} forwards selected tier ${serviceTier}`, async (t) => {

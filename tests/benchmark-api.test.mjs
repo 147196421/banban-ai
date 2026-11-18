@@ -273,6 +273,23 @@ for (const reasoningEffort of ['low', 'medium', 'high', 'xhigh', 'max']) {
   }
 }
 
+for (const requestType of [undefined, 'stream', 'sync']) {
+  test(`candy forwards ultra on the ${requestType ?? 'public'} route`, async (t) => {
+    let received;
+    t.mock.method(globalThis, 'fetch', async (url, init) => {
+      if (url.endsWith('/config')) return Response.json({}, { headers: { 'Set-Cookie': 'gallery_visitor=test-cookie; Path=/; HttpOnly; Secure' } });
+      received = { url, body: JSON.parse(init.body) };
+      return Response.json({ id: 'ultra-task' }, { status: 202 });
+    });
+    assert.equal((await POST(request({ benchmark: 'reasoning', model: 'gpt-6.2-astra', reasoningEffort: 'ultra', requestType }))).status, 202);
+    await flush();
+    assert.equal(received.url, requestType ? 'https://manxue.ai/api/visitor/tests' : 'https://manxue.ai/api/v1/tests');
+    assert.equal(received.body.reasoning_effort, 'ultra');
+    assert.equal(received.body.stream, requestType === undefined ? undefined : requestType === 'stream');
+    assert.equal(fixture.tasks.get(id).status, 'active');
+  });
+}
+
 test('invalid reasoning and request types never create tasks or contact upstream', async () => {
   for (const handler of [POST, generate]) {
     for (const requestType of [null, false, 'false', 'streaming', {}]) {
@@ -280,15 +297,17 @@ test('invalid reasoning and request types never create tasks or contact upstream
       assert.equal(response.status, 400);
       assert.match((await response.json()).error, /请求类型无效/);
     }
-    for (const reasoningEffort of [null, 1, 'ultra', 'none', {}]) {
+    for (const reasoningEffort of [null, 1, 'none', {}]) {
       const response = await handler(request({ benchmark: 'reasoning', reasoningEffort, prompt: 'test' }));
       assert.equal(response.status, 400);
       assert.match((await response.json()).error, /推理程度无效/);
     }
   }
-  for (const reasoningEffort of ['xhigh', 'max']) {
+  for (const reasoningEffort of ['xhigh', 'max', 'ultra']) {
     assert.equal((await POST(request({ reasoningEffort, requestType: 'sync' }))).status, 400);
   }
+  assert.equal((await POST(request({ freeCreation: true, reasoningEffort: 'ultra' }))).status, 400);
+  assert.equal((await generate(request({ reasoningEffort: 'ultra', prompt: 'test' }))).status, 400);
   assert.equal(fixture.tasks.size, 0);
   assert.equal(fixture.pending.length, 0);
 });

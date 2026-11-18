@@ -57,7 +57,9 @@ export async function POST(request: Request) {
       return Response.json({ error: "检测服务暂未配置" }, { status: 503 });
     }
     // Preserve old clients' defaults when no explicit effort was submitted.
-    const effort = parseReasoningEffort(body.reasoningEffort, benchmark !== "candy", benchmark === "candy" ? "medium" : "low");
+    const effort = benchmark === "candy"
+      ? parseReasoningEffort(body.reasoningEffort, "reasoning", "medium")
+      : parseReasoningEffort(body.reasoningEffort, "frontend");
 
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionId)) {
       return Response.json({ error: "检测任务编号无效" }, { status: 400 });

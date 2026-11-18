@@ -1,16 +1,19 @@
-export const reasoningEfforts = ["low", "medium", "high", "xhigh", "max"] as const;
-export type ReasoningEffort = typeof reasoningEfforts[number];
+const frontendReasoningEfforts = ["low", "medium", "high"] as const;
+const customReasoningEfforts = [...frontendReasoningEfforts, "xhigh", "max"] as const;
+const candyReasoningEfforts = [...customReasoningEfforts, "ultra"] as const;
+export type ReasoningEffort = typeof candyReasoningEfforts[number];
+type ReasoningMode = "reasoning" | "frontend" | "custom";
 export type RequestType = "stream" | "sync";
 
-export function allowedReasoningEfforts(frontend: boolean): readonly ReasoningEffort[] {
-  // The public pelican/creative API only accepts these three levels.
-  return frontend ? reasoningEfforts.slice(0, 3) : reasoningEfforts;
+export function allowedReasoningEfforts(mode: ReasoningMode): readonly ReasoningEffort[] {
+  if (mode === "frontend") return frontendReasoningEfforts;
+  return mode === "reasoning" ? candyReasoningEfforts : customReasoningEfforts;
 }
 
-export function parseReasoningEffort(value: unknown, frontend = false, fallback: ReasoningEffort = "low"): ReasoningEffort {
+export function parseReasoningEffort(value: unknown, mode: ReasoningMode = "custom", fallback: ReasoningEffort = "low"): ReasoningEffort {
   if (value === undefined) return fallback;
-  if (typeof value === "string" && allowedReasoningEfforts(frontend).includes(value as ReasoningEffort)) return value as ReasoningEffort;
-  throw new Error(frontend ? "鹈鹕骑行和自由创作仅支持 low、medium、high 推理程度" : "推理程度无效，请重新选择");
+  if (typeof value === "string" && allowedReasoningEfforts(mode).includes(value as ReasoningEffort)) return value as ReasoningEffort;
+  throw new Error(mode === "frontend" ? "鹈鹕骑行和自由创作仅支持 low、medium、high 推理程度" : "推理程度无效，请重新选择");
 }
 
 export function parseRequestType(value: unknown): RequestType {

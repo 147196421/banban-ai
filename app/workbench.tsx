@@ -705,7 +705,7 @@ export function BanbanWorkbench() {
   function changeBenchmark(value: string) {
     const next = value as Benchmark;
     setBenchmark(next);
-    if (!allowedReasoningEfforts(next === "frontend").includes(reasoningEffort)) setReasoningEffort("low");
+    if (!allowedReasoningEfforts(next).includes(reasoningEffort)) setReasoningEffort("low");
     setSelectedHistoryId("");
     setRequestProtocol("responses");
   }
@@ -847,7 +847,7 @@ export function BanbanWorkbench() {
             <div className="field field-wide">
               <Label htmlFor="model">GPT 模型</Label>
               {manualModel ? (
-                <div className="field-control"><Braces aria-hidden="true" /><Input id="model" value={selectedModel} onChange={(event) => setSelectedModel(event.target.value)} placeholder="例如 gpt-6-astra" /></div>
+                <div className="field-control"><Braces aria-hidden="true" /><Input id="model" value={selectedModel} onChange={(event) => setSelectedModel(event.target.value)} placeholder="填写接口支持的 GPT 模型名" /></div>
               ) : (
                 <NativeSelect id="model" className="model-select" value={selectedModel} onChange={(event) => setSelectedModel(event.target.value)} disabled={!models.length} aria-describedby={modelMessage ? "model-help" : undefined}>
                   <NativeSelectOption value="">{models.length ? "请选择 GPT 模型" : "请先获取模型"}</NativeSelectOption>
@@ -855,14 +855,14 @@ export function BanbanWorkbench() {
                 </NativeSelect>
               )}
               {(manualModelError || modelMessage) && <p id="model-help" aria-live="polite" className={`field-message ${(manualModelError || (modelMessage && !models.length)) ? "field-error" : ""}`}>{manualModelError || modelMessage}</p>}
-              {benchmark === "frontend" && <p className="field-message">鹈鹕骑行 / 自由创作使用 Responses；其他模型的作品判定仅供参考。</p>}
+              {benchmark === "frontend" && <p className="field-message">支持接口提供的 GPT 模型，使用 Responses。部分模型的作品判定仅供参考。</p>}
             </div>
 
             <div className="generation-options field-wide">
               <div className="field">
                 <Label htmlFor="reasoning-effort">推理程度</Label>
                 <NativeSelect id="reasoning-effort" className="model-select" value={reasoningEffort} onChange={(event) => setReasoningEffort(event.target.value as ReasoningEffort)}>
-                  {allowedReasoningEfforts(benchmark === "frontend").map((effort) => <NativeSelectOption key={effort} value={effort}>{effort}（{effortLabels[effort]}）</NativeSelectOption>)}
+                  {allowedReasoningEfforts(benchmark).map((effort) => <NativeSelectOption key={effort} value={effort}>{effort}（{effortLabels[effort]}）</NativeSelectOption>)}
                 </NativeSelect>
               </div>
 

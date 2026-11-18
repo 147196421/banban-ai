@@ -83,14 +83,22 @@ test('free creation uses the public creative benchmark without a visitor session
   assert.equal(fixture.tasks.get(id).upstream_task_id, 'manxue:creative-task');
 });
 
-test('unsupported pelican models are rejected before creating or sending a task', async () => {
-  for (const freeCreation of [false, true]) {
-    const response = await POST(request({ model: 'gpt-6.1-sol', freeCreation }));
-    assert.equal(response.status, 400);
-    assert.match((await response.json()).error, /仅支持 gpt-6-astra/);
+test('pelican and free creation forward the selected GPT model without an Astra-only restriction', async (t) => {
+  const forwarded = [];
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (url.endsWith('/config')) return Response.json({}, { headers: { 'Set-Cookie': 'gallery_visitor=test-cookie; Path=/; HttpOnly; Secure' } });
+    forwarded.push(JSON.parse(init.body));
+    return Response.json({ id: 'accepted-task' }, { status: 202 });
+  });
+  for (const [model, freeCreation] of [['gpt-6.1-sol', false], ['gpt-6.2-astra', true]]) {
+    assert.equal((await POST(request({ model, freeCreation, requestType: 'stream' }))).status, 202);
+    await flush();
+    assert.equal(forwarded.at(-1).model, model);
+    assert.equal(forwarded.at(-1).benchmark, 'pelican');
+    assert.equal(forwarded.at(-1).random_scene, freeCreation || undefined);
+    fixture.tasks.clear();
   }
-  assert.equal(fixture.tasks.size, 0);
-  assert.equal(fixture.pending.length, 0);
+  assert.equal(forwarded.length, 2);
 });
 
 test('candy keeps its existing model and effort without removed API fields', async (t) => {

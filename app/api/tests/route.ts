@@ -69,10 +69,6 @@ export async function POST(request: Request) {
     if (!isGptModel(model)) {
       return Response.json({ error: "目前仅支持 GPT 系列模型" }, { status: 400 });
     }
-    if (benchmark !== "candy" && model !== "gpt-6-astra") {
-      return Response.json({ error: "鹈鹕骑行和自由创作目前仅支持 gpt-6-astra，请选择该模型" }, { status: 400 });
-    }
-
     const rateLimit = await checkRateLimit(request, "test-create", 12, 60 * 60 * 1000);
     if (!rateLimit.allowed) {
       return Response.json(

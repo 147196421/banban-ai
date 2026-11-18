@@ -897,7 +897,7 @@ export function BanbanWorkbench() {
             <details className="parameter-help field-wide">
               <summary>参数说明</summary>
               <div>
-                <p>{benchmark === "frontend" ? "鹈鹕骑行和自由创作支持 low、medium、high。" : "推理程度是否受支持取决于模型和接口服务商。"}</p>
+                <p>{benchmark === "frontend" ? "鹈鹕骑行和自由创作支持 low、medium、high。" : "推理程度取决于所选模型和接口。若接口不接受 ultra（极限），可以换一个档位再试。"}</p>
                 <p>快速模式取决于接口服务商，不改变推理强度。</p>
                 <p>流式分段接收响应，同步等待完整响应；均在完成后展示结果。</p>
                 {benchmark === "custom" && <p>默认使用 Responses；接口不支持时可切换协议。</p>}

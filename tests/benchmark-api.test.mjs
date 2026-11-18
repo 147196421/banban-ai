@@ -244,7 +244,7 @@ for (const requestType of ['stream', 'sync']) {
   }
 }
 
-for (const reasoningEffort of ['low', 'medium', 'high', 'xhigh', 'max']) {
+for (const reasoningEffort of ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']) {
   for (const protocol of ['responses', 'chat_completions']) {
     for (const requestType of ['stream', 'sync']) {
       test(`custom ${protocol} ${reasoningEffort} ${requestType} transmits options and consumes the response`, async (t) => {
@@ -307,7 +307,6 @@ test('invalid reasoning and request types never create tasks or contact upstream
     assert.equal((await POST(request({ reasoningEffort, requestType: 'sync' }))).status, 400);
   }
   assert.equal((await POST(request({ freeCreation: true, reasoningEffort: 'ultra' }))).status, 400);
-  assert.equal((await generate(request({ reasoningEffort: 'ultra', prompt: 'test' }))).status, 400);
   assert.equal(fixture.tasks.size, 0);
   assert.equal(fixture.pending.length, 0);
 });

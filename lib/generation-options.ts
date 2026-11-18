@@ -1,13 +1,11 @@
 const frontendReasoningEfforts = ["low", "medium", "high"] as const;
-const customReasoningEfforts = [...frontendReasoningEfforts, "xhigh", "max"] as const;
-const candyReasoningEfforts = [...customReasoningEfforts, "ultra"] as const;
-export type ReasoningEffort = typeof candyReasoningEfforts[number];
+const allReasoningEfforts = [...frontendReasoningEfforts, "xhigh", "max", "ultra"] as const;
+export type ReasoningEffort = typeof allReasoningEfforts[number];
 type ReasoningMode = "reasoning" | "frontend" | "custom";
 export type RequestType = "stream" | "sync";
 
 export function allowedReasoningEfforts(mode: ReasoningMode): readonly ReasoningEffort[] {
-  if (mode === "frontend") return frontendReasoningEfforts;
-  return mode === "reasoning" ? candyReasoningEfforts : customReasoningEfforts;
+  return mode === "frontend" ? frontendReasoningEfforts : allReasoningEfforts;
 }
 
 export function parseReasoningEffort(value: unknown, mode: ReasoningMode = "custom", fallback: ReasoningEffort = "low"): ReasoningEffort {

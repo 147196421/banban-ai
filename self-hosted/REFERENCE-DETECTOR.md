@@ -6,7 +6,7 @@
 
 当前版本：新客户端显式选择流式或同步时走访客 `/api/visitor/tests`，由网站服务器建立访客会话，携带 `stream` 和 `protocol: "responses"` 提交；旧客户端未传请求类型时仍走公开 `/api/v1/tests`。鹈鹕使用 `benchmark: "pelican"`，勾选自由创作在访客接口提交 `random_scene: true`。鹈鹕和自由创作可填写接口支持的任意 GPT 模型，推理程度支持 low、medium、high；非 `gpt-6-astra` 的作品判定仅供参考。公开接口仍可使用 `benchmark: "creative"`，不接受访客接口的 `protocol`、`random_scene` 字段。“自定义生成”独立支持 Responses / Chat Completions。
 
-糖果检测推理程度支持 low、medium、high、xhigh、max、ultra，实际支持情况取决于所选模型和接口。这里的 ultra 是推理程度；UltraFast 是独立的快速模式。
+糖果检测和自定义生成可提交 low、medium、high、xhigh、max、ultra，实际支持情况取决于所选模型和接口。这里的 ultra 是推理程度；UltraFast 是独立的快速模式。
 
 网站自己的 `/v1/tests` 保留任务索引与历史记录，浏览器切到后台后可继续查询。满血 AI 的任务最多运行 10 分钟、保留 1 小时；办办 AI 会保存已完成的结果。满血任务返回鹈鹕 HTML 后，网站调用本机 8787 的独立截图接口用 Chromium 渲染并保存 PNG，不会再调用模型或修改满血判定。需保留原 `BANBAN_TEST_SERVICE_TOKEN` 和本机检测服务；该服务不可用时只显示作品预览。
 
